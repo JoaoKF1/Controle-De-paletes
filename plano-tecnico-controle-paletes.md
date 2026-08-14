@@ -192,14 +192,15 @@ O mesmo padrão (leitura geral + escrita restrita ao perfil dono) se repete para
 | Sprint | Entrega |
 |---|---|
 | 0 | Criação do repositório no GitHub, setup do projeto Flutter, projeto Supabase, autenticação, deploy do schema + RLS |
-| 1 | Cadastros base (Admin): Cliente, Composição, Ficha Técnica, OP, Usuários |
-| 2 | Apontamento de palete (Onduladeira): busca de OP, cálculo automático, gravação |
-| 3 | Consulta em tempo real (Conversão) + leitura de código de barras |
-| 4 | Refugo + Ocorrências de Qualidade (abrir, listar, liberar/reprovar, histórico) |
-| 5 | Geração e impressão de etiqueta (PDF + rede WiFi) |
-| 6 | Dashboard e relatórios (desktop) |
-| 7 | Modo offline (SQLite local + sincronização) |
-| 8 | Testes com usuários piloto (Onduladeira + Conversão), ajustes finais |
+| 1 | Cadastros base (Admin): Cliente, Composição, Ficha Técnica, OP — **entregue**, testado em `feat/cadastros` |
+| 2 | Gestão de Usuários (Admin): criar/editar perfis direto pelo app — separado do Sprint 1 porque não bloqueia os próximos sprints (usuário novo pode ser criado manualmente no Supabase Auth, como foi feito pro `kenji`) |
+| 3 | Apontamento de palete (Onduladeira): busca de OP, cálculo automático, gravação |
+| 4 | Consulta em tempo real (Conversão) + leitura de código de barras |
+| 5 | Refugo + Ocorrências de Qualidade (abrir, listar, liberar/reprovar, histórico) |
+| 6 | Geração e impressão de etiqueta (PDF + rede WiFi) |
+| 7 | Dashboard e relatórios (desktop) |
+| 8 | Modo offline (SQLite local + sincronização) |
+| 9 | Testes com usuários piloto (Onduladeira + Conversão), ajustes finais |
 
 **Fase 2 (pós-MVP)**: apontamento próprio da Conversão, chapa elaborada com Quebra, OCR de etiqueta, perfil Expedição.
 
@@ -226,3 +227,30 @@ create policy "leitura do proprio perfil" on profiles
 ```
 
 Sem essa política, o Supabase bloqueia toda leitura da tabela por padrão assim que o RLS é ativado — mesmo para o dono da própria linha.
+
+**RLS dos cadastros base (`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`)**: leitura liberada pra qualquer autenticado, escrita restrita a admin.
+
+```sql
+alter table clientes enable row level security;
+alter table composicoes enable row level security;
+alter table fichas_tecnicas enable row level security;
+alter table ordens_producao enable row level security;
+
+create policy "leitura geral clientes" on clientes for select using (true);
+create policy "leitura geral composicoes" on composicoes for select using (true);
+create policy "leitura geral fichas_tecnicas" on fichas_tecnicas for select using (true);
+create policy "leitura geral ordens_producao" on ordens_producao for select using (true);
+
+create policy "admin escreve clientes" on clientes for insert with check (
+  exists (select 1 from profiles where id = auth.uid() and perfil = 'admin')
+);
+create policy "admin escreve composicoes" on composicoes for insert with check (
+  exists (select 1 from profiles where id = auth.uid() and perfil = 'admin')
+);
+create policy "admin escreve fichas_tecnicas" on fichas_tecnicas for insert with check (
+  exists (select 1 from profiles where id = auth.uid() and perfil = 'admin')
+);
+create policy "admin escreve ordens_producao" on ordens_producao for insert with check (
+  exists (select 1 from profiles where id = auth.uid() and perfil = 'admin')
+);
+```
