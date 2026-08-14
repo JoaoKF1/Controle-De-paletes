@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Artefatos do npx supabase (CLI usada como binario, nao como dependencia do projeto)
+/node_modules/
+/package.json
+/package-lock.json
+
+.env
