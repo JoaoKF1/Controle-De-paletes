@@ -132,8 +132,9 @@ class OrdensProducaoView extends ConsumerWidget {
                     keyboardType: TextInputType.number,
                     validator: (v) {
                       final n = int.tryParse(v ?? '');
-                      if (n == null || n <= 0)
+                      if (n == null || n <= 0) {
                         return 'Informe um número maior que zero';
+                      }
                       return null;
                     },
                   ),
@@ -153,8 +154,9 @@ class OrdensProducaoView extends ConsumerWidget {
                         firstDate: DateTime(2020),
                         lastDate: DateTime.now(),
                       );
-                      if (escolhida != null)
+                      if (escolhida != null) {
                         setState(() => dataPedido = escolhida);
+                      }
                     },
                   ),
                 ],

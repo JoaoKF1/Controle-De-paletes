@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../domain/entities/composicao.dart';
 
-final _composicoesProvider = FutureProvider.autoDispose<List<Composicao>>((ref) {
+final _composicoesProvider = FutureProvider.autoDispose<List<Composicao>>((
+  ref,
+) {
   return ref.watch(cadastrosRepositoryProvider).listarComposicoes();
 });
 
@@ -22,11 +24,13 @@ class ComposicoesView extends ConsumerWidget {
         error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
         data: (composicoes) {
           if (composicoes.isEmpty) {
-            return const Center(child: Text('Nenhuma composição cadastrada ainda.'));
+            return const Center(
+              child: Text('Nenhuma composição cadastrada ainda.'),
+            );
           }
           return ListView.separated(
             itemCount: composicoes.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final c = composicoes[i];
               return ListTile(
@@ -63,15 +67,20 @@ class ComposicoesView extends ConsumerWidget {
                 decoration: const InputDecoration(
                   labelText: 'Código (ex: T140M130T140/B)',
                 ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
               ),
               TextFormField(
                 controller: espessuraController,
                 decoration: const InputDecoration(labelText: 'Espessura (mm)'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 validator: (v) {
                   final valor = double.tryParse((v ?? '').replaceAll(',', '.'));
-                  if (valor == null || valor <= 0) return 'Informe um valor maior que zero';
+                  if (valor == null || valor <= 0) {
+                    return 'Informe um valor maior que zero';
+                  }
                   return null;
                 },
               ),
@@ -89,9 +98,13 @@ class ComposicoesView extends ConsumerWidget {
               final composicao = Composicao(
                 id: '',
                 codigo: codigoController.text.trim(),
-                espessuraMm: double.parse(espessuraController.text.replaceAll(',', '.')),
+                espessuraMm: double.parse(
+                  espessuraController.text.replaceAll(',', '.'),
+                ),
               );
-              await ref.read(cadastrosRepositoryProvider).criarComposicao(composicao);
+              await ref
+                  .read(cadastrosRepositoryProvider)
+                  .criarComposicao(composicao);
               ref.invalidate(_composicoesProvider);
               if (dialogContext.mounted) Navigator.of(dialogContext).pop();
             },

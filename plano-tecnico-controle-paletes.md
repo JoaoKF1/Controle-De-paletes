@@ -184,6 +184,7 @@ O mesmo padrão (leitura geral + escrita restrita ao perfil dono) se repete para
 - **Correções pequenas**: `fix/nome-do-problema`
 - **Commits no padrão Conventional Commits**: `feat:`, `fix:`, `chore:`, `docs:` — um commit por peça lógica de trabalho, não só um commit gigante por sprint
 - Ao concluir a feature: merge pra `main`, apaga a branch, segue pra próxima
+- **Sem PR/revisão intermediária** — o merge é direto, depois de testar a feature manualmente. Como rede de segurança complementar (não como gate), todo push roda CI (GitHub Actions, `.github/workflows/ci.yml`): `flutter analyze` + `flutter test`. Se quebrar, aparece no GitHub mesmo sem travar o merge.
 
 ---
 
