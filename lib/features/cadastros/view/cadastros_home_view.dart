@@ -7,6 +7,7 @@ import 'clientes_view.dart';
 import 'composicoes_view.dart';
 import 'fichas_tecnicas_view.dart';
 import 'ordens_producao_view.dart';
+import 'usuarios_view.dart';
 
 class CadastrosHomeView extends ConsumerWidget {
   const CadastrosHomeView({super.key});
@@ -55,6 +56,13 @@ class CadastrosHomeView extends ConsumerWidget {
             titulo: 'Ordens de Produção',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const OrdensProducaoView()),
+            ),
+          ),
+          _CadastroTile(
+            icone: Icons.people,
+            titulo: 'Usuários',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const UsuariosView()),
             ),
           ),
         ],

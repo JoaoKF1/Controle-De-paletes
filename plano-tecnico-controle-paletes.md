@@ -217,7 +217,7 @@ join paletes p on p.ordem_producao_id = op.id
 where p.setor_origem = 'onduladeira';
 ```
 
-**Login por usuário, não por email**: o Supabase Auth exige um email por baixo dos panos, mas a pessoa nunca digita nem vê isso — o campo `login` de `profiles` é o "usuário" (curto, sem espaço, ex: `kenji`), e o app monta um email técnico automaticamente no padrão `<login>@controle-paletes.local` só pra autenticar. Ao criar um usuário novo no Supabase Auth, o email cadastrado lá deve seguir esse mesmo padrão.
+**Login por usuário, não por email**: o Supabase Auth exige um email por baixo dos panos, mas a pessoa nunca digita nem vê isso — o campo `login` de `profiles` é o "usuário" (curto, sem espaço, ex: `kenji`), e o app monta um email técnico automaticamente no padrão `<login>@controle-paletes.app` só pra autenticar. Ao criar um usuário novo no Supabase Auth, o email cadastrado lá deve seguir esse mesmo padrão.
 
 **RLS obrigatório em `profiles`**: como qualquer usuário logado precisa ler seu próprio perfil, a política mínima é:
 
@@ -227,6 +227,24 @@ create policy "leitura do proprio perfil" on profiles
 ```
 
 Sem essa política, o Supabase bloqueia toda leitura da tabela por padrão assim que o RLS é ativado — mesmo para o dono da própria linha.
+
+**RLS de admin em `profiles` (Sprint 2 — gestão de Usuários)**: a tela de Usuários precisa que o admin liste todo mundo e edite nome/perfil/ativo de qualquer um, não só a própria linha:
+
+```sql
+create policy "admin le todos perfis" on profiles
+  for select using (
+    exists (select 1 from profiles where id = auth.uid() and perfil = 'admin')
+  );
+
+create policy "admin atualiza perfis" on profiles
+  for update using (
+    exists (select 1 from profiles where id = auth.uid() and perfil = 'admin')
+  ) with check (
+    exists (select 1 from profiles where id = auth.uid() and perfil = 'admin')
+  );
+```
+
+**Criar usuário e trocar senha não passam pelo app direto**: essas duas ações exigem a `service_role` key do Supabase (privilégio de admin do Auth), que nunca pode ser embutida no app Flutter — quem extrair o app teria acesso total ao banco, ignorando todo o RLS. Por isso rodam numa Edge Function (`supabase/functions/admin-usuarios`), que guarda a `service_role` key como segredo do projeto e só executa depois de confirmar, via `profiles`, que quem chamou é admin. Editar nome/perfil e desativar continuam diretos pelo app, cobertos pelas policies acima.
 
 **RLS dos cadastros base (`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`)**: leitura liberada pra qualquer autenticado, escrita restrita a admin.
 
