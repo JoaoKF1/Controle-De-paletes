@@ -246,6 +246,15 @@ create policy "admin atualiza perfis" on profiles
 
 **Criar usuário e trocar senha não passam pelo app direto**: essas duas ações exigem a `service_role` key do Supabase (privilégio de admin do Auth), que nunca pode ser embutida no app Flutter — quem extrair o app teria acesso total ao banco, ignorando todo o RLS. Por isso rodam numa Edge Function (`supabase/functions/admin-usuarios`), que guarda a `service_role` key como segredo do projeto e só executa depois de confirmar, via `profiles`, que quem chamou é admin. Editar nome/perfil e desativar continuam diretos pelo app, cobertos pelas policies acima.
 
+**Admin tem acesso a tudo, inclusive telas operacionais**: o perfil `admin` não fica restrito aos cadastros — ele também acessa as telas de cada setor (Onduladeira, Conversão, Qualidade) a partir da própria home de Cadastros, pra poder testar/apoiar qualquer fluxo. Isso exige que as policies de escrita de cada setor também aceitem admin, não só o dono do setor:
+
+```sql
+create policy "admin insere paletes" on paletes
+  for insert with check (public.is_admin());
+```
+
+O mesmo padrão (uma policy extra de insert com `with check (public.is_admin())`, além da policy do próprio setor) deve ser repetido em `refugos` e `ocorrencias_qualidade` quando esses sprints chegarem.
+
 **RLS dos cadastros base (`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`)**: leitura liberada pra qualquer autenticado, escrita restrita a admin.
 
 ```sql

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../auth/controller/auth_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../apontamento/view/ordens_abertas_view.dart';
 import 'clientes_view.dart';
 import 'composicoes_view.dart';
 import 'fichas_tecnicas_view.dart';
@@ -63,6 +64,17 @@ class CadastrosHomeView extends ConsumerWidget {
             titulo: 'Usuários',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const UsuariosView()),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Divider(),
+          ),
+          _CadastroTile(
+            icone: Icons.factory,
+            titulo: 'Ordens em aberto (Onduladeira)',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const OrdensAbertasView()),
             ),
           ),
         ],

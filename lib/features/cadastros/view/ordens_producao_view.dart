@@ -4,12 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../domain/entities/ficha_tecnica.dart';
 import '../../../domain/entities/ordem_producao.dart';
+import '../../apontamento/view/busca_op_view.dart';
 
 final _opsProvider = FutureProvider.autoDispose<List<OrdemProducao>>((ref) {
   return ref.watch(cadastrosRepositoryProvider).listarOrdensProducao();
 });
 
-final _fichasParaFormProvider = FutureProvider.autoDispose<List<FichaTecnica>>((ref) {
+final _fichasParaFormProvider = FutureProvider.autoDispose<List<FichaTecnica>>((
+  ref,
+) {
   return ref.watch(cadastrosRepositoryProvider).listarFichasTecnicas();
 });
 
@@ -21,7 +24,18 @@ class OrdensProducaoView extends ConsumerWidget {
     final opsAsync = ref.watch(_opsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ordens de Produção')),
+      appBar: AppBar(
+        title: const Text('Ordens de Produção'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Buscar OP',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const BuscaOpView()),
+            ),
+          ),
+        ],
+      ),
       body: opsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
@@ -31,7 +45,7 @@ class OrdensProducaoView extends ConsumerWidget {
           }
           return ListView.separated(
             itemCount: ops.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final op = ops[i];
               return ListTile(
@@ -61,7 +75,11 @@ class OrdensProducaoView extends ConsumerWidget {
 
     if (fichas.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cadastre pelo menos 1 Ficha Técnica antes de criar uma OP.')),
+        const SnackBar(
+          content: Text(
+            'Cadastre pelo menos 1 Ficha Técnica antes de criar uma OP.',
+          ),
+        ),
       );
       return;
     }
@@ -85,25 +103,37 @@ class OrdensProducaoView extends ConsumerWidget {
                 children: [
                   TextFormField(
                     controller: numeroOpController,
-                    decoration: const InputDecoration(labelText: 'Número da OP'),
+                    decoration: const InputDecoration(
+                      labelText: 'Número da OP',
+                    ),
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
                   ),
                   DropdownButtonFormField<String>(
                     initialValue: fichaIdSelecionada,
-                    decoration: const InputDecoration(labelText: 'Ficha Técnica'),
+                    decoration: const InputDecoration(
+                      labelText: 'Ficha Técnica',
+                    ),
                     items: fichas
-                        .map((f) => DropdownMenuItem(value: f.id, child: Text(f.codigoFt)))
+                        .map(
+                          (f) => DropdownMenuItem(
+                            value: f.id,
+                            child: Text(f.codigoFt),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) => setState(() => fichaIdSelecionada = v!),
                   ),
                   TextFormField(
                     controller: quantidadeController,
-                    decoration: const InputDecoration(labelText: 'Quantidade pedida'),
+                    decoration: const InputDecoration(
+                      labelText: 'Quantidade pedida',
+                    ),
                     keyboardType: TextInputType.number,
                     validator: (v) {
                       final n = int.tryParse(v ?? '');
-                      if (n == null || n <= 0) return 'Informe um número maior que zero';
+                      if (n == null || n <= 0)
+                        return 'Informe um número maior que zero';
                       return null;
                     },
                   ),
@@ -123,7 +153,8 @@ class OrdensProducaoView extends ConsumerWidget {
                         firstDate: DateTime(2020),
                         lastDate: DateTime.now(),
                       );
-                      if (escolhida != null) setState(() => dataPedido = escolhida);
+                      if (escolhida != null)
+                        setState(() => dataPedido = escolhida);
                     },
                   ),
                 ],
@@ -146,7 +177,9 @@ class OrdensProducaoView extends ConsumerWidget {
                   dataPedido: dataPedido,
                   status: 'aberta',
                 );
-                await ref.read(cadastrosRepositoryProvider).criarOrdemProducao(op);
+                await ref
+                    .read(cadastrosRepositoryProvider)
+                    .criarOrdemProducao(op);
                 ref.invalidate(_opsProvider);
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               },
