@@ -22,11 +22,13 @@ class ClientesView extends ConsumerWidget {
         error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
         data: (clientes) {
           if (clientes.isEmpty) {
-            return const Center(child: Text('Nenhum cliente cadastrado ainda.'));
+            return const Center(
+              child: Text('Nenhum cliente cadastrado ainda.'),
+            );
           }
           return ListView.separated(
             itemCount: clientes.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final c = clientes[i];
               return ListTile(
@@ -62,19 +64,22 @@ class ClientesView extends ConsumerWidget {
               TextFormField(
                 controller: razaoSocialController,
                 decoration: const InputDecoration(labelText: 'Razão social'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
               ),
               TextFormField(
                 controller: cidadeController,
                 decoration: const InputDecoration(labelText: 'Cidade'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
               ),
               TextFormField(
                 controller: ufController,
                 decoration: const InputDecoration(labelText: 'UF'),
                 maxLength: 2,
                 textCapitalization: TextCapitalization.characters,
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
               ),
             ],
           ),

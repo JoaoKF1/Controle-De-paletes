@@ -10,13 +10,16 @@ final _fichasProvider = FutureProvider.autoDispose<List<FichaTecnica>>((ref) {
   return ref.watch(cadastrosRepositoryProvider).listarFichasTecnicas();
 });
 
-final _clientesParaFormProvider = FutureProvider.autoDispose<List<Cliente>>((ref) {
+final _clientesParaFormProvider = FutureProvider.autoDispose<List<Cliente>>((
+  ref,
+) {
   return ref.watch(cadastrosRepositoryProvider).listarClientes();
 });
 
-final _composicoesParaFormProvider = FutureProvider.autoDispose<List<Composicao>>((ref) {
-  return ref.watch(cadastrosRepositoryProvider).listarComposicoes();
-});
+final _composicoesParaFormProvider =
+    FutureProvider.autoDispose<List<Composicao>>((ref) {
+      return ref.watch(cadastrosRepositoryProvider).listarComposicoes();
+    });
 
 class FichasTecnicasView extends ConsumerWidget {
   const FichasTecnicasView({super.key});
@@ -32,11 +35,13 @@ class FichasTecnicasView extends ConsumerWidget {
         error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
         data: (fichas) {
           if (fichas.isEmpty) {
-            return const Center(child: Text('Nenhuma ficha técnica cadastrada ainda.'));
+            return const Center(
+              child: Text('Nenhuma ficha técnica cadastrada ainda.'),
+            );
           }
           return ListView.separated(
             itemCount: fichas.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final f = fichas[i];
               return ListTile(
@@ -63,7 +68,9 @@ class FichasTecnicasView extends ConsumerWidget {
     if (clientes.isEmpty || composicoes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Cadastre pelo menos 1 Cliente e 1 Composição antes de criar uma FT.'),
+          content: Text(
+            'Cadastre pelo menos 1 Cliente e 1 Composição antes de criar uma FT.',
+          ),
         ),
       );
       return;
@@ -98,7 +105,12 @@ class FichasTecnicasView extends ConsumerWidget {
                     initialValue: clienteIdSelecionado,
                     decoration: const InputDecoration(labelText: 'Cliente'),
                     items: clientes
-                        .map((c) => DropdownMenuItem(value: c.id, child: Text(c.razaoSocial)))
+                        .map(
+                          (c) => DropdownMenuItem(
+                            value: c.id,
+                            child: Text(c.razaoSocial),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) => setState(() => clienteIdSelecionado = v),
                   ),
@@ -106,29 +118,43 @@ class FichasTecnicasView extends ConsumerWidget {
                     initialValue: composicaoIdSelecionada,
                     decoration: const InputDecoration(labelText: 'Composição'),
                     items: composicoes
-                        .map((c) => DropdownMenuItem(value: c.id, child: Text(c.codigo)))
+                        .map(
+                          (c) => DropdownMenuItem(
+                            value: c.id,
+                            child: Text(c.codigo),
+                          ),
+                        )
                         .toList(),
-                    onChanged: (v) => setState(() => composicaoIdSelecionada = v),
+                    onChanged: (v) =>
+                        setState(() => composicaoIdSelecionada = v),
                   ),
                   TextFormField(
                     controller: medidaController,
-                    decoration: const InputDecoration(labelText: 'Medida da chapa (ex: 733 x 1.964)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Medida da chapa (ex: 733 x 1.964)',
+                    ),
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
                   ),
                   TextFormField(
                     controller: qpController,
-                    decoration: const InputDecoration(labelText: 'QP padrão (nº de pilhas)'),
+                    decoration: const InputDecoration(
+                      labelText: 'QP padrão (nº de pilhas)',
+                    ),
                     keyboardType: TextInputType.number,
                     validator: (v) {
                       final n = int.tryParse(v ?? '');
-                      if (n == null || n <= 0) return 'Informe um número maior que zero';
+                      if (n == null || n <= 0) {
+                        return 'Informe um número maior que zero';
+                      }
                       return null;
                     },
                   ),
                   TextFormField(
                     controller: referenciaController,
-                    decoration: const InputDecoration(labelText: 'Referência (opcional)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Referência (opcional)',
+                    ),
                   ),
                 ],
               ),
@@ -154,7 +180,9 @@ class FichasTecnicasView extends ConsumerWidget {
                       : referenciaController.text.trim(),
                   ativo: true,
                 );
-                await ref.read(cadastrosRepositoryProvider).criarFichaTecnica(ficha);
+                await ref
+                    .read(cadastrosRepositoryProvider)
+                    .criarFichaTecnica(ficha);
                 ref.invalidate(_fichasProvider);
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               },
