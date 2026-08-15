@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../apontamento/view/ordens_abertas_view.dart';
 import '../../conversao/view/ordens_disponiveis_view.dart';
+import '../../dashboard/view/dashboard_view.dart';
 import '../../qualidade/view/fila_analise_view.dart';
 import 'clientes_view.dart';
 import 'composicoes_view.dart';
@@ -91,6 +92,17 @@ class CadastrosHomeView extends ConsumerWidget {
             titulo: 'Fila de análise (Qualidade)',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const FilaAnaliseView()),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Divider(),
+          ),
+          _CadastroTile(
+            icone: Icons.bar_chart,
+            titulo: 'Dashboard',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DashboardView()),
             ),
           ),
         ],
