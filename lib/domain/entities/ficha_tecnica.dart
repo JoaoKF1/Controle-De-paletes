@@ -19,6 +19,12 @@ class FichaTecnica {
   final String? resinaInterna;
   final String? resinaExterna;
 
+  // Paletização da Conversão — só usada por OPs 802 (ver plano técnico,
+  // seção 1). Ex: pacote de 30 caixas, 2 pacotes por camada, palete com
+  // 14 camadas de altura.
+  final int? pacotesPorCamada;
+  final int? pecasPorPacote;
+
   const FichaTecnica({
     required this.id,
     required this.codigoFt,
@@ -36,6 +42,8 @@ class FichaTecnica {
     this.compressao,
     this.resinaInterna,
     this.resinaExterna,
+    this.pacotesPorCamada,
+    this.pecasPorPacote,
   });
 
   factory FichaTecnica.fromMap(Map<String, dynamic> map) => FichaTecnica(
@@ -55,6 +63,8 @@ class FichaTecnica {
         compressao: (map['compressao'] as num?)?.toDouble(),
         resinaInterna: map['resina_interna'] as String?,
         resinaExterna: map['resina_externa'] as String?,
+        pacotesPorCamada: map['pacotes_por_camada'] as int?,
+        pecasPorPacote: map['pecas_por_pacote'] as int?,
       );
 
   Map<String, dynamic> toInsertMap() => {
@@ -72,5 +82,7 @@ class FichaTecnica {
         'compressao': compressao,
         'resina_interna': resinaInterna,
         'resina_externa': resinaExterna,
+        'pacotes_por_camada': pacotesPorCamada,
+        'pecas_por_pacote': pecasPorPacote,
       };
 }

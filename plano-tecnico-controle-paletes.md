@@ -11,12 +11,12 @@ A produção de uma chapa passa por até duas etapas, em setores diferentes:
 
 Depois vai pra Expedição, que carrega pro cliente (fora do escopo do sistema por enquanto — ver seção 10).
 
-Nem todo pedido passa pelas duas etapas: alguns terminam na chapa semi-elaborada mesmo — o cliente compra só a chapa cortada, sem impressão nem vinco (ex: "PEDIDO DE CHAPA", quando o cliente faz a conversão por conta própria ou usa a chapa lisa). Qual caminho a OP segue é identificado pelo **prefixo do número da OP**:
+Nem todo pedido passa pelas duas etapas: alguns terminam direto na saída da Onduladeira — o cliente compra só a chapa cortada, sem impressão nem vinco (ex: "PEDIDO DE CHAPA", quando o cliente faz a conversão por conta própria ou usa a chapa lisa). Qual caminho a OP segue é identificado pelo **prefixo do número da OP**:
 
-- **802** — a chapa vai virar elaborada: a OP passa pela Onduladeira e depois pela Conversão.
-- **803** — fica só chapa: a OP passa só pela Onduladeira, o produto final já é a chapa semi-elaborada.
+- **803** — fica só chapa: a OP passa só pela Onduladeira, e esse já é o produto final daquela OP — vai direto pra Expedição, sem Conversão.
+- **802** — a chapa ainda precisa da Conversão: sai da Onduladeira intermediária e só fica pronta depois de passar por lá (impressão + vinco).
 
-Isso importa pro app porque **o `tipo_chapa` de um apontamento reflete o setor que apontou, não o prefixo da OP**: todo apontamento feito pela Onduladeira é sempre `semi_elaborado` (é o que ela produz, esteja a OP destinada a virar elaborada depois ou não); todo apontamento feito pela Conversão é sempre `elaborado`. O prefixo 802/803 serve pra outra coisa — decidir se aquela OP **precisa** passar pela Conversão, o que afeta quando ela aparece na fila de trabalho da Conversão (Sprint 4) e quando ela é considerada `concluída`.
+Isso importa pro app porque **o `tipo_chapa` de um apontamento da Onduladeira depende do prefixo da OP**, não é sempre o mesmo valor: numa OP 803 ela grava `elaborado` (é o produto final dessa OP, mesmo sem ter passado por impressão/vinco — ver 9.1); numa OP 802 ela grava `semi_elaborado` (ainda vai virar outra coisa na Conversão). Já o apontamento da Conversão é sempre `elaborado` — ela só processa OP 802, e o que sai de lá é sempre o resultado final. O prefixo 802/803 também decide se a OP **precisa** passar pela fila de trabalho da Conversão (Sprint 4) — só 802 entra lá.
 
 ---
 
@@ -26,8 +26,8 @@ Isso importa pro app porque **o `tipo_chapa` de um apontamento reflete o setor q
 |---|---|
 | `admin` | Cadastros base (Cliente, Composição, Ficha Técnica, OP), gestão de Usuários, e acesso a todas as telas operacionais dos outros perfis — pra poder testar/apoiar qualquer fluxo |
 | `onduladeira` | Aponta paletes de chapa semi-elaborada nas OPs em aberto |
-| `conversao` | Aponta paletes de chapa elaborada, a partir do que a Onduladeira já produziu (Sprint 4/5 — ainda não implementado) |
-| `qualidade` | Abre e decide ocorrências de qualidade sobre paletes já apontados; segrega material (Sprint 5 — ainda não implementado) |
+| `conversao` | Aponta paletes de chapa elaborada, a partir do que a Onduladeira já produziu — **entregue** |
+| `qualidade` | Abre e decide ocorrências de qualidade sobre paletes já apontados; segrega material — **entregue** |
 
 (Fase 2, fora do escopo atual: perfil `expedicao` — ver seção 10.)
 
@@ -89,9 +89,9 @@ O schema real do banco vive em `supabase/migrations/` — esse é o histórico v
 - **`profiles`**: um perfil por usuário autenticado, ligado ao `auth.users` nativo do Supabase. Guarda `login` (o "usuário" curto que a pessoa digita), `nome`, `perfil` (`onduladeira`/`conversao`/`qualidade`/`admin`) e `ativo`.
 - **`clientes`**: cadastro simples — razão social, cidade, UF, ativo.
 - **`composicoes`**: os "tipos de onda" (ex: `T140M130T140/B`), cada um com sua `espessura_mm`.
-- **`fichas_tecnicas`**: o produto em si — código, cliente, composição, medida da chapa, `qp_padrao` (número de pilhas por palete) e as 8 colunas de qualidade opcionais (ver 9.6).
+- **`fichas_tecnicas`**: o produto em si — código, cliente, composição, medida da chapa, `qp_padrao` (número de pilhas por palete), as 8 colunas de qualidade opcionais (ver 9.6) e os 2 campos de paletização da Conversão (ver 5.3).
 - **`ordens_producao`**: a OP — número (cujo prefixo 802/803 define o roteamento, ver seção 1), ficha técnica, quantidade pedida, data do pedido e `status` (`aberta`/`concluida`).
-- **`paletes`**: cada apontamento — OP, número sequencial (único por OP), altura medida, quantidade calculada, `tipo_chapa`, `setor_origem` (`onduladeira`/`conversao`), código de barras (único globalmente, é o valor impresso na etiqueta), responsável e data/hora.
+- **`paletes`**: cada apontamento — OP, número sequencial (único por OP), `altura_medida_mm` (Onduladeira) ou `camadas` (Conversão) — um dos dois, nunca os dois —, quantidade calculada, `tipo_chapa`, `setor_origem` (`onduladeira`/`conversao`), código de barras (único globalmente, é o valor impresso na etiqueta), responsável, data/hora, e `revisado_por` (quem debitou saldo por último — ver 9.4).
 - **`refugos`**: chapa perdida/descartada, vinculada à OP (não a um palete específico) — ver 9.3.
 - **`ocorrencias_qualidade`** e **`historico_ocorrencia`**: ocorrências abertas sobre um palete e o histórico de mudança de status — ver 9.4.
 
@@ -103,18 +103,25 @@ Observações:
 
 Colunas adicionadas depois do Sprint 1, pra cobrir as especificações técnicas do produto (ver 9.6): `gramatura`, `coluna`, `cobb_interno`, `cobb_externo`, `mullen`, `compressao`, `resina_interna`, `resina_externa`. Todas opcionais (nullable) — nem toda FT precisa preencher tudo de cara.
 
-### 5.2 Pendências de schema conhecidas (ainda não implementadas)
+### 5.2 Refugo e segregação (Sprint 5)
 
-Coisas que já sabemos que vão exigir uma migration nova quando os sprints correspondentes chegarem — registrado aqui pra não esquecer, mas **nada disso está no banco ainda**:
+- **`refugos.motivo`** virou lista fechada via `check constraint`: `Quebra na produção`, `Erro de medida`, `Amassado/rasgado`, `Outro`.
+- **`paletes`** ganhou `quantidade_reprovada` (o que já foi debitado por reprovação/segregação/exclusão) e `saldo_disponivel` (coluna gerada, `quantidade_calculada − quantidade_reprovada`). Não existe coluna "segregado": é só `quantidade_reprovada > 0`, o que naturalmente persiste mesmo com saldo zerado (ver 9.4).
+- **`ocorrencias_qualidade`** ganhou `quantidade_reprovada` (nullable, só preenchida ao resolver) — separada de `quantidade_afetada` (o que foi flagrado originalmente), pra suportar liberação parcial (ver 9.4).
 
-- **`refugos.motivo` — hoje é texto livre**, mas a regra de negócio pede uma lista fechada: `Quebra na produção`, `Erro de medida`, `Amassado/rasgado`, `Outro`. Falta o `check constraint` (ou uma tabela de domínio) e o formulário virar um seletor em vez de texto livre.
-- **`ocorrencias_qualidade` / segregação de palete** — o schema atual não modela: (a) o **saldo disponível** do palete (quantidade original menos o que já foi debitado por reprovação), (b) o **flag "segregado"** que precisa persistir no histórico mesmo depois do saldo zerar, nem (c) a distinção entre as ações possíveis por perfil (ver seção 9.4). Isso será desenhado no Sprint 5, mas provavelmente exige uma coluna de saldo em `paletes` (ex: `quantidade_reprovada`, com `saldo_disponivel` calculado) e talvez um campo de "ação" em `ocorrencias_qualidade`.
+### 5.3 Paletização da Conversão
+
+`fichas_tecnicas` ganhou `pacotes_por_camada` e `pecas_por_pacote` — opcionais no banco, mas **obrigatórios pra apontar como Conversão** (ver 9.1). FTs antigas continuam funcionando pra Onduladeira normalmente; só precisam desses 2 campos se a OP for 802. (Chegou a existir um terceiro campo, `altura_pacote_mm`, pra medir a pilha em mm igual a Onduladeira faz — foi removido: o operador da Conversão informa direto quantas **camadas** de pacote o palete tem, sem medir altura.)
+
+### 5.4 Edição dos cadastros base
+
+Sprint 1 só tinha `insert` pros cadastros base (Cliente, Composição, Ficha Técnica, OP) — não dava pra corrigir nada depois de criado. A Ficha Técnica agora tem edição pelo app (tela de lista, toca num item, abre o mesmo formulário preenchido, salva com `update`), o que exigiu adicionar a policy de `update` que faltava (ver 9.10). Clientes, Composições e OP ainda só têm tela de criação — mesma pendência, ainda não resolvida pra essas três.
 
 ---
 
 ## 6. Políticas de segurança (RLS)
 
-Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer perfil autenticado **lê** tudo. `paletes` tem RLS habilitado com uma policy de leitura geral e uma policy de insert por setor, cada uma conferindo que `setor_origem` bate com o `perfil` de quem está inserindo (consultando `profiles`). O mesmo padrão (leitura geral + escrita restrita ao perfil dono) se repete para `refugos` (Onduladeira/Conversão podem lançar) e `ocorrencias_qualidade` (qualquer setor abre; só `qualidade` atualiza o `status`). Os cadastros base (`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`) ficam restritos a `insert`/`update`/`delete` apenas para `perfil = 'admin'`, com leitura liberada geral. O SQL de cada policy vive versionado em `supabase/migrations/`.
+Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer perfil autenticado **lê** tudo. `paletes` tem RLS habilitado com uma policy de leitura geral e uma policy de insert por setor, cada uma conferindo que `setor_origem` bate com o `perfil` de quem está inserindo (consultando `profiles`). O mesmo padrão (leitura geral + escrita restrita ao perfil dono) se repete para `refugos` (Onduladeira/Conversão podem lançar) e `ocorrencias_qualidade` (qualquer setor abre; só `qualidade` atualiza o `status`). Os cadastros base (`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`) ficam com `insert`/`update` restritos a `perfil = 'admin'` (sem `delete` ainda — ver 9.10), com leitura liberada geral. O SQL de cada policy vive versionado em `supabase/migrations/`.
 
 ---
 
@@ -138,8 +145,8 @@ Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer
 | 1 | Cadastros base (Admin): Cliente, Composição, Ficha Técnica (com campos de qualidade), OP — **entregue** |
 | 2 | Gestão de Usuários (Admin): criar/editar/trocar senha/desativar direto pelo app — **entregue**, testado em `feat/usuarios` |
 | 3 | Apontamento de palete (Onduladeira): tela operacional, cálculo automático, gravação — **entregue**, testado em `feat/apontamento-palete` |
-| 4 | Consulta em tempo real (Conversão) + leitura de código de barras — só OPs com prefixo **802** (as que precisam de Conversão) entram na fila de trabalho dela |
-| 5 | Refugo (motivo pré-definido) + Ocorrências de Qualidade (segregação parcial/total, saldo do palete, ações por perfil, histórico) |
+| 4 | Consulta em tempo real (Conversão) + apontamento próprio (chapa elaborada) — **entregue**, testado em `feat/consulta-conversao`. Só OPs com prefixo **802** entram na fila de trabalho da Conversão. Fórmula própria por pacote/camada, com campos novos na FT (ver 5.3, 9.1) |
+| 5 | Refugo (motivo pré-definido) + Ocorrências de Qualidade (segregação parcial/total, saldo do palete, ações por perfil, histórico) — implementado em `feat/refugo-qualidade`, aguardando teste. Leitura de código de barras de verdade fica pro Sprint 6 (ver 9.5) |
 | 6 | Geração e impressão de etiqueta (PDF + rede WiFi) |
 | 7 | Dashboard e relatórios (desktop) |
 | 8 | Modo offline (SQLite local + sincronização) |
@@ -151,15 +158,24 @@ Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer
 
 ### 9.1 Cálculo de quantidade do palete
 
+A Onduladeira conta **chapas**, medindo a altura da pilha em mm. A Conversão conta **caixas** já paletizadas, mas não mede altura nenhuma — o produto dela vem embalado em pacotes (ex: pacote de 30 caixas), com vários pacotes lado a lado por camada, e o operador só informa **quantas camadas** o palete tem:
+
 ```
-quantidade_calculada = floor( (altura_medida_mm ÷ espessura_mm da composição) × qp_padrao da FT )
+Onduladeira: floor( (altura_medida_mm ÷ espessura_mm da composição) × qp_padrao da FT )
+Conversão:   camadas × pacotes_por_camada da FT × pecas_por_pacote da FT
 ```
 
-- **`altura_medida_mm`**: altura da pilha de chapas empilhadas, medida pelo operador na hora do apontamento.
+- **`altura_medida_mm`** (só Onduladeira): altura da pilha de chapas, medida pelo operador na hora do apontamento.
 - **`espessura_mm`** (da Composição/tipo de onda): espessura de uma chapa individual — `altura ÷ espessura` dá quantas chapas cabem numa pilha daquela altura.
 - **`qp_padrao`** (da Ficha Técnica): número de **pilhas por palete** daquele produto — um palete físico é montado com várias pilhas lado a lado, então multiplicar pelo `qp_padrao` dá o total de chapas do palete inteiro.
-- Arredondado **pra baixo** (`floor`): só conta chapa inteira, a pilha não fecha uma chapa parcial.
-- `tipo_chapa` do apontamento é sempre `semi_elaborado` quando quem aponta é a Onduladeira, e sempre `elaborado` quando é a Conversão — não depende de seleção manual nem do prefixo da OP (ver seção 1).
+- **`camadas`** (só Conversão): quantas camadas de pacote o palete tem — contado direto pelo operador, não calculado a partir de medida nenhuma.
+- **`pacotes_por_camada`** (da Ficha Técnica): quantos pacotes ficam lado a lado em cada camada.
+- **`pecas_por_pacote`** (da Ficha Técnica): quantas caixas tem em 1 pacote (ex: 30). `camadas × pacotes_por_camada × pecas_por_pacote` dá o total de caixas do palete — como os três são inteiros, não precisa arredondar.
+- A fórmula da Onduladeira arredonda **pra baixo** (`floor`): só conta chapa inteira.
+- `tipo_chapa` nunca é seleção manual. Pra Conversão é sempre `elaborado`. Pra Onduladeira depende do prefixo da OP: `elaborado` se a OP começa com 803 (produto final), `semi_elaborado` se começa com 802 (ainda intermediário) — ver seção 1.
+- O apontamento da Conversão só funciona se a Ficha Técnica tiver os 2 campos de paletização preenchidos (ver 5.3) — sem eles o app recusa com uma mensagem, em vez de calcular errado.
+
+Na tela de detalhe da OP (Conversão), aparece um resumo com o total produzido pela Onduladeira e o total já apontado pela Conversão — informativo, não é um débito automático de estoque (as unidades são diferentes: chapas de um lado, caixas de outro). O apontamento da Conversão continua sendo feito palete a palete, quando aquele palete estiver completo.
 
 ### 9.2 Visibilidade de OP para a Conversão
 
@@ -170,16 +186,17 @@ Uma OP só entra na fila de trabalho da Conversão se (a) tiver **prefixo 802** 
 Chapa perdida ou descartada durante o processo (Onduladeira ou Conversão). Regras:
 
 - Lançamento **independente** de um apontamento de palete — vinculado obrigatoriamente à **OP**, não a um palete específico.
-- Motivo vem de uma lista pré-definida: `Quebra na produção`, `Erro de medida`, `Amassado/rasgado`, `Outro` (ver pendência de schema em 5.1).
+- Motivo vem de uma lista pré-definida: `Quebra na produção`, `Erro de medida`, `Amassado/rasgado`, `Outro` (ver 5.2).
 - Registrado por **qualquer operador do setor onde ocorreu** (Onduladeira ou Conversão), não só quem apontou o palete relacionado.
 - Reprovações de qualidade também **somam automaticamente** ao refugo da OP (ver 9.4) — o refugo de uma OP não é só o que foi lançado manualmente, é a soma dos lançamentos manuais + o que a Qualidade reprovou.
 
 ### 9.4 Ocorrência de qualidade e segregação
 
-- **Quem abre**: qualquer setor pode abrir uma ocorrência (parcial ou total) sobre um palete **já apontado**. Nasce com status `em_analise`.
-- **Quem decide**: só o perfil `qualidade` decide o status final (`liberado` ou `reprovado`) — nenhum outro perfil resolve uma ocorrência aberta.
-- **Ao reprovar**: a quantidade reprovada é debitada do **saldo disponível** do palete (não apaga o registro do palete) e é somada automaticamente ao **refugo da OP**.
-- **Badge "segregado"**: o palete recebe uma marca visual de segregado e continua aparecendo na lista/consulta mesmo depois de 100% da quantidade ter sido debitada — nunca desaparece, fica no histórico.
+- **Quem abre**: qualquer setor pode abrir uma ocorrência (parcial ou total) sobre um palete **já apontado**. Nasce com status `em_analise`, com uma `quantidade_afetada` (o que foi flagrado pra revisão).
+- **Quem decide**: só o perfil `qualidade` decide o resultado — nenhum outro perfil resolve uma ocorrência aberta. A decisão não é só um binário liberar/reprovar: a Qualidade informa **quanto** da `quantidade_afetada` é reprovado (`quantidade_reprovada` na ocorrência, de 0 até o total afetado) — 0 libera tudo, o total afetado reprova tudo, qualquer valor no meio é uma **liberação parcial** (o resto volta pro saldo disponível normalmente). `status` fecha em `liberado` se nada foi reprovado, `reprovado` se algo foi (parcial ou total).
+- **Ao reprovar (total ou parcial)**: a quantidade reprovada é debitada do **saldo disponível** do palete (não apaga o registro do palete) e é somada automaticamente ao **refugo da OP**.
+- **Rótulo de segregação**: o palete recebe uma marca visual e continua aparecendo na lista/consulta mesmo depois de 100% da quantidade ter sido debitada — nunca desaparece, fica no histórico. O texto muda conforme sobrou saldo ou não: **"SEGREGADO PARCIALMENTE"** se ainda tem saldo disponível depois do débito, **"SEGREGADO"** se o saldo zerou.
+- **Quem revisou**: toda resolução (inclusive "Segregar inteiro", que pula a análise, e "Excluir totalmente", feito pelo próprio setor) grava quem debitou o saldo em `paletes.revisado_por` — aparece direto na lista de paletes ("revisado por Fulano") sem precisar navegar histórico nenhum. `historico_ocorrencia` continua guardando o rastro completo de mudanças de status pra auditoria mais detalhada.
 
 ### 9.5 Ações por leitura de código de barras (por perfil)
 
@@ -191,6 +208,8 @@ Ao ler o código de barras de um palete, as ações disponíveis mudam conforme 
 - **Apontador de produção (Onduladeira/Conversão)**:
   - *Corrigir quantidade* — ajusta um erro do próprio apontamento (ex: digitou a altura errada).
   - *Excluir totalmente* — descarta o que ele mesmo produziu; vai direto pro refugo da OP, sem passar pela Qualidade.
+
+`codigo_barras` só existe de verdade a partir do Sprint 6 (etiqueta impressa), então por enquanto essas ações ficam atrás de **tocar no palete na lista** (nas telas de detalhe de OP), não de uma leitura de câmera de verdade. "Pedir revisão" fica disponível pra qualquer perfil autenticado que tocar num palete (não só Qualidade), porque a regra de negócio em 9.4 diz que qualquer setor pode abrir ocorrência — as outras três ações (segregar/corrigir/excluir) ficam restritas a quem tem o perfil certo pro palete em questão. Quando o Sprint 6 trouxer leitura de câmera de verdade, ela deve preencher o mesmo fluxo, só trocando "tocar na lista" por "escanear".
 
 ### 9.6 Campos de qualidade da Ficha Técnica
 
@@ -210,18 +229,24 @@ Como qualquer usuário logado precisa ler seu próprio perfil, existe uma policy
 
 ### 9.9 Admin tem acesso a tudo, inclusive telas operacionais
 
-O perfil `admin` não fica restrito aos cadastros — ele também acessa as telas de cada setor (Onduladeira, Conversão, Qualidade) a partir da própria home de Cadastros, pra poder testar/apoiar qualquer fluxo. Isso exige que as policies de escrita de cada setor também aceitem admin (via `is_admin()`), não só o dono do setor — hoje já vale pra `paletes`; o mesmo padrão deve ser repetido em `refugos` e `ocorrencias_qualidade` quando esses sprints chegarem.
+O perfil `admin` não fica restrito aos cadastros — ele também acessa as telas de cada setor (Onduladeira, Conversão, Qualidade) a partir da própria home de Cadastros, pra poder testar/apoiar qualquer fluxo. Isso exige que as policies de escrita de cada setor também aceitem admin (via `is_admin()`), não só o dono do setor — vale pra `paletes`, `refugos` e `ocorrencias_qualidade`.
 
 ### 9.10 RLS dos cadastros base
 
-`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`: leitura liberada pra qualquer autenticado, escrita (`insert`/`update`/`delete`) restrita a quem tem `perfil = 'admin'` em `profiles`.
+`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`: leitura liberada pra qualquer autenticado, `insert` e `update` restritos a quem tem `perfil = 'admin'` (via `is_admin()`). Não existe `delete` em nenhuma das quatro ainda — cadastro errado hoje só dá pra corrigir editando (FT já tem tela pra isso, ver 5.4), não apagando.
+
+### 9.11 RLS de refugo, ocorrência e correção de palete (Sprint 5)
+
+- **`paletes` ganhou policy de `update`** (antes só tinha `select`/`insert`): o setor dono do palete (comparando `perfil` com `setor_origem`) pode corrigir seu próprio apontamento; a Qualidade (ou admin) pode debitar `quantidade_reprovada` ao reprovar/segregar.
+- **`refugos`**: leitura geral; insere quem tem perfil `onduladeira`, `conversao` ou `qualidade` (ou admin) — cobre tanto lançamento manual quanto os débitos automáticos vindos de reprovação/exclusão.
+- **`ocorrencias_qualidade`**: leitura geral; **insert** liberado pra qualquer autenticado (é a regra "qualquer setor abre ocorrência" de 9.4); **update** do `status` só pra `qualidade` (ou admin) — ninguém mais resolve uma ocorrência.
+- **`historico_ocorrencia`**: leitura geral; insert só quando a Qualidade (ou admin) resolve uma ocorrência.
 
 ---
 
 ## 10. Fora de escopo por agora (Fase 2)
 
-- **Dados de Conversão no cadastro da FT**: cores de tinta, clichê, arranjo, peças por amarrado.
-- **Dados de Paletização no cadastro da FT**: peças por palete padrão, medidas do palete.
+- **Dados de Conversão no cadastro da FT**: cores de tinta, clichê, arranjo, peças por amarrado. (Paletização — altura/pacotes/camada — já saiu daqui e foi implementada, ver 5.3.)
 - **Perfil `expedicao`**: consulta de OPs 802 em produção, carregamento pro cliente.
 - Chapa elaborada com fluxo de Quebra mais refinado.
 - OCR de etiqueta.

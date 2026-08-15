@@ -47,6 +47,8 @@ class FichasTecnicasView extends ConsumerWidget {
               return ListTile(
                 title: Text(f.codigoFt),
                 subtitle: Text('${f.medidaChapa} · QP padrão: ${f.qpPadrao}'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _abrirFormulario(context, ref, existente: f),
               );
             },
           );
@@ -59,7 +61,11 @@ class FichasTecnicasView extends ConsumerWidget {
     );
   }
 
-  Future<void> _abrirFormulario(BuildContext context, WidgetRef ref) async {
+  Future<void> _abrirFormulario(
+    BuildContext context,
+    WidgetRef ref, {
+    FichaTecnica? existente,
+  }) async {
     final clientes = await ref.read(_clientesParaFormProvider.future);
     final composicoes = await ref.read(_composicoesParaFormProvider.future);
 
@@ -77,26 +83,38 @@ class FichasTecnicasView extends ConsumerWidget {
     }
 
     final formKey = GlobalKey<FormState>();
-    final codigoController = TextEditingController();
-    final medidaController = TextEditingController();
-    final qpController = TextEditingController();
-    final referenciaController = TextEditingController();
-    final gramaturaController = TextEditingController();
-    final colunaController = TextEditingController();
-    final cobbInternoController = TextEditingController();
-    final cobbExternoController = TextEditingController();
-    final mullenController = TextEditingController();
-    final compressaoController = TextEditingController();
-    final resinaInternaController = TextEditingController();
-    final resinaExternaController = TextEditingController();
-    String? clienteIdSelecionado = clientes.first.id;
-    String? composicaoIdSelecionada = composicoes.first.id;
+    final codigoController = TextEditingController(text: existente?.codigoFt ?? '');
+    final medidaController = TextEditingController(text: existente?.medidaChapa ?? '');
+    final qpController = TextEditingController(text: existente?.qpPadrao.toString() ?? '');
+    final referenciaController = TextEditingController(text: existente?.referencia ?? '');
+    final gramaturaController = TextEditingController(text: existente?.gramatura?.toString() ?? '');
+    final colunaController = TextEditingController(text: existente?.coluna?.toString() ?? '');
+    final cobbInternoController = TextEditingController(
+      text: existente?.cobbInterno?.toString() ?? '',
+    );
+    final cobbExternoController = TextEditingController(
+      text: existente?.cobbExterno?.toString() ?? '',
+    );
+    final mullenController = TextEditingController(text: existente?.mullen?.toString() ?? '');
+    final compressaoController = TextEditingController(
+      text: existente?.compressao?.toString() ?? '',
+    );
+    final resinaInternaController = TextEditingController(text: existente?.resinaInterna ?? '');
+    final resinaExternaController = TextEditingController(text: existente?.resinaExterna ?? '');
+    final pacotesPorCamadaController = TextEditingController(
+      text: existente?.pacotesPorCamada?.toString() ?? '',
+    );
+    final pecasPorPacoteController = TextEditingController(
+      text: existente?.pecasPorPacote?.toString() ?? '',
+    );
+    String? clienteIdSelecionado = existente?.clienteId ?? clientes.first.id;
+    String? composicaoIdSelecionada = existente?.composicaoId ?? composicoes.first.id;
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: const Text('Nova Ficha Técnica'),
+          title: Text(existente == null ? 'Nova Ficha Técnica' : 'Editar Ficha Técnica'),
           content: SingleChildScrollView(
             child: Form(
               key: formKey,
@@ -210,6 +228,24 @@ class FichasTecnicasView extends ConsumerWidget {
                     controller: resinaExternaController,
                     decoration: const InputDecoration(labelText: 'Resina Externa'),
                   ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(),
+                  ),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Paletização da Conversão (opcional, só p/ OP 802)'),
+                  ),
+                  TextFormField(
+                    controller: pacotesPorCamadaController,
+                    decoration: const InputDecoration(labelText: 'Pacotes por camada'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  TextFormField(
+                    controller: pecasPorPacoteController,
+                    decoration: const InputDecoration(labelText: 'Peças (caixas) por pacote'),
+                    keyboardType: TextInputType.number,
+                  ),
                 ],
               ),
             ),
@@ -223,7 +259,7 @@ class FichasTecnicasView extends ConsumerWidget {
               onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
                 final ficha = FichaTecnica(
-                  id: '',
+                  id: existente?.id ?? '',
                   codigoFt: codigoController.text.trim(),
                   clienteId: clienteIdSelecionado!,
                   composicaoId: composicaoIdSelecionada!,
@@ -232,7 +268,7 @@ class FichasTecnicasView extends ConsumerWidget {
                   referencia: referenciaController.text.trim().isEmpty
                       ? null
                       : referenciaController.text.trim(),
-                  ativo: true,
+                  ativo: existente?.ativo ?? true,
                   gramatura: double.tryParse(
                     gramaturaController.text.replaceAll(',', '.'),
                   ),
@@ -257,10 +293,15 @@ class FichasTecnicasView extends ConsumerWidget {
                   resinaExterna: resinaExternaController.text.trim().isEmpty
                       ? null
                       : resinaExternaController.text.trim(),
+                  pacotesPorCamada: int.tryParse(pacotesPorCamadaController.text),
+                  pecasPorPacote: int.tryParse(pecasPorPacoteController.text),
                 );
-                await ref
-                    .read(cadastrosRepositoryProvider)
-                    .criarFichaTecnica(ficha);
+                final repo = ref.read(cadastrosRepositoryProvider);
+                if (existente == null) {
+                  await repo.criarFichaTecnica(ficha);
+                } else {
+                  await repo.atualizarFichaTecnica(ficha);
+                }
                 ref.invalidate(_fichasProvider);
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               },

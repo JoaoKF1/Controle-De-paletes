@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../apontamento/view/ordens_abertas_view.dart';
 import '../../conversao/view/ordens_disponiveis_view.dart';
+import '../../qualidade/view/fila_analise_view.dart';
 import 'clientes_view.dart';
 import 'composicoes_view.dart';
 import 'fichas_tecnicas_view.dart';
@@ -83,6 +84,13 @@ class CadastrosHomeView extends ConsumerWidget {
             titulo: 'Ordens disponíveis (Conversão)',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const OrdensDisponiveisView()),
+            ),
+          ),
+          _CadastroTile(
+            icone: Icons.fact_check_outlined,
+            titulo: 'Fila de análise (Qualidade)',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const FilaAnaliseView()),
             ),
           ),
         ],
