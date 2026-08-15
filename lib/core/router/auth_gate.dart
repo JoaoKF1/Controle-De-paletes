@@ -6,11 +6,12 @@ import '../../features/auth/controller/auth_controller.dart';
 import '../../features/auth/view/home_placeholder_view.dart';
 import '../../features/auth/view/login_view.dart';
 import '../../features/cadastros/view/cadastros_home_view.dart';
+import '../../features/conversao/view/ordens_disponiveis_view.dart';
 
 /// Ponto de entrada do app depois do login: mostra loading, tela de login,
 /// ou a home certa conforme o perfil — admin vai para os cadastros,
-/// Onduladeira vai para as ordens em aberto; Conversão e Qualidade seguem
-/// na tela temporária até seus sprints específicos.
+/// Onduladeira vai para as ordens em aberto, Conversão vai para as ordens
+/// disponíveis; Qualidade segue na tela temporária até seu sprint.
 class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
 
@@ -25,6 +26,8 @@ class AuthGate extends ConsumerWidget {
             return const CadastrosHomeView();
           case 'onduladeira':
             return const OrdensAbertasView();
+          case 'conversao':
+            return const OrdensDisponiveisView();
           default:
             return const HomePlaceholderView();
         }

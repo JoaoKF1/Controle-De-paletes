@@ -40,6 +40,21 @@ class PaletesRepository {
     return (dados as List).map((e) => OrdemProducaoInfo.fromMap(e)).toList();
   }
 
+  /// Só entram OPs com prefixo 802 (as que precisam de Conversão — ver
+  /// plano técnico, seção 1) que já têm pelo menos 1 palete apontado pela
+  /// Onduladeira. Não exige que a Onduladeira tenha terminado a OP: a
+  /// Conversão pode ir processando à medida que os paletes saem de lá.
+  Future<List<OrdemProducaoInfo>> listarOrdensDisponiveisConversao() async {
+    final dados = await _client
+        .from('ordens_producao')
+        .select('$_selectComJoins, paletes!inner(id)')
+        .eq('status', 'aberta')
+        .like('numero_op', '802%')
+        .eq('paletes.setor_origem', 'onduladeira')
+        .order('data_pedido');
+    return (dados as List).map((e) => OrdemProducaoInfo.fromMap(e)).toList();
+  }
+
   Future<List<Palete>> listarPaletesDaOrdem(String ordemProducaoId) async {
     final dados = await _client
         .from('paletes')
@@ -51,20 +66,24 @@ class PaletesRepository {
 
   /// quantidade_calculada = (altura ÷ espessura da composição) × qp_padrão
   /// da FT, arredondado pra baixo — só conta chapa inteira. numero_sequencial
-  /// é o próximo da OP; se dois apontamentos colidirem nesse número, o
-  /// unique constraint do banco rejeita e o app mostra o erro (fluxo de um
-  /// operador por vez, então a colisão é rara).
+  /// é o próximo da OP (não por setor — o unique constraint do banco é só
+  /// em ordem_producao_id + numero_sequencial); se dois apontamentos
+  /// colidirem nesse número, o banco rejeita e o app mostra o erro (fluxo
+  /// de um operador por vez, então a colisão é rara).
   ///
-  /// tipo_chapa é sempre 'semi_elaborado' aqui: é o que a Onduladeira
-  /// produz, não depende do prefixo da OP (isso só decide se a OP vai
-  /// precisar de Conversão depois — ver plano técnico, seção 1).
+  /// tipo_chapa deriva de setorOrigem, nunca é escolha do usuário: sempre
+  /// 'semi_elaborado' pra Onduladeira, sempre 'elaborado' pra Conversão —
+  /// não depende do prefixo da OP (isso só decide se a OP vai precisar de
+  /// Conversão depois — ver plano técnico, seção 1).
   Future<void> registrarPalete({
     required OrdemProducaoInfo ordem,
     required double alturaMedidaMm,
     required String responsavelId,
+    required String setorOrigem,
   }) async {
     final quantidadeCalculada =
         ((alturaMedidaMm / ordem.composicaoEspessuraMm) * ordem.qpPadrao).floor();
+    final tipoChapa = setorOrigem == 'conversao' ? 'elaborado' : 'semi_elaborado';
 
     final ultimo = await _client
         .from('paletes')
@@ -80,8 +99,8 @@ class PaletesRepository {
       'numero_sequencial': proximoNumero,
       'altura_medida_mm': alturaMedidaMm,
       'quantidade_calculada': quantidadeCalculada,
-      'tipo_chapa': 'semi_elaborado',
-      'setor_origem': 'onduladeira',
+      'tipo_chapa': tipoChapa,
+      'setor_origem': setorOrigem,
       'responsavel_id': responsavelId,
     });
   }

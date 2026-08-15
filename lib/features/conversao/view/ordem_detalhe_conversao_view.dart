@@ -11,10 +11,10 @@ final _paletesDaOrdemProvider = FutureProvider.autoDispose
   return ref.watch(paletesRepositoryProvider).listarPaletesDaOrdem(ordemId);
 });
 
-class OrdemDetalheView extends ConsumerWidget {
+class OrdemDetalheConversaoView extends ConsumerWidget {
   final OrdemProducaoInfo ordem;
 
-  const OrdemDetalheView({super.key, required this.ordem});
+  const OrdemDetalheConversaoView({super.key, required this.ordem});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -47,23 +47,21 @@ class OrdemDetalheView extends ConsumerWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
               data: (paletes) {
-                if (paletes.isEmpty) {
-                  return const Center(child: Text('Nenhum palete apontado ainda.'));
-                }
-                return ListView.separated(
-                  itemCount: paletes.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, i) {
-                    final p = paletes[i];
-                    return ListTile(
-                      title: Text('Palete ${p.numeroSequencial}'),
-                      subtitle: Text(
-                        'Altura ${p.alturaMedidaMm.toStringAsFixed(0)}mm · '
-                        'Qtd ${p.quantidadeCalculada} · ${p.tipoChapa}',
-                      ),
-                      trailing: Text(DateFormat('HH:mm').format(p.dataHora)),
-                    );
-                  },
+                final daOnduladeira =
+                    paletes.where((p) => p.setorOrigem == 'onduladeira').toList();
+                final daConversao = paletes.where((p) => p.setorOrigem == 'conversao').toList();
+                return ListView(
+                  children: [
+                    _SecaoPaletes(
+                      titulo: 'Produzido pela Onduladeira',
+                      paletes: daOnduladeira,
+                    ),
+                    const Divider(height: 24),
+                    _SecaoPaletes(
+                      titulo: 'Apontado pela Conversão',
+                      paletes: daConversao,
+                    ),
+                  ],
                 );
               },
             ),
@@ -115,7 +113,7 @@ class OrdemDetalheView extends ConsumerWidget {
                   const SizedBox(height: 8),
                   const Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Tipo de chapa: semi_elaborado'),
+                    child: Text('Tipo de chapa: elaborado'),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -155,7 +153,7 @@ class OrdemDetalheView extends ConsumerWidget {
                                   alturaController.text.replaceAll(',', '.'),
                                 ),
                                 responsavelId: responsavelId,
-                                setorOrigem: 'onduladeira',
+                                setorOrigem: 'conversao',
                               );
                           ref.invalidate(_paletesDaOrdemProvider(ordem.id));
                           if (dialogContext.mounted) {
@@ -176,6 +174,41 @@ class OrdemDetalheView extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _SecaoPaletes extends StatelessWidget {
+  final String titulo;
+  final List<Palete> paletes;
+
+  const _SecaoPaletes({required this.titulo, required this.paletes});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(titulo, style: Theme.of(context).textTheme.titleSmall),
+        ),
+        if (paletes.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Nenhum palete ainda.'),
+          )
+        else
+          ...paletes.map(
+            (p) => ListTile(
+              title: Text('Palete ${p.numeroSequencial}'),
+              subtitle: Text(
+                'Altura ${p.alturaMedidaMm.toStringAsFixed(0)}mm · Qtd ${p.quantidadeCalculada}',
+              ),
+              trailing: Text(DateFormat('HH:mm').format(p.dataHora)),
+            ),
+          ),
+      ],
     );
   }
 }
