@@ -65,11 +65,6 @@ class OrdemProducaoInfo {
     required this.composicaoEspessuraMm,
   });
 
-  /// Regra de negócio: OP que começa com 803 é chapa elaborada, com 802 é
-  /// semi-elaborada. Não existe seleção manual — o tipo vem sempre do
-  /// prefixo do número da OP.
-  String get tipoChapa => numeroOp.startsWith('803') ? 'elaborado' : 'semi_elaborado';
-
   factory OrdemProducaoInfo.fromMap(Map<String, dynamic> map) {
     final ft = map['fichas_tecnicas'] as Map<String, dynamic>;
     final cliente = ft['clientes'] as Map<String, dynamic>;

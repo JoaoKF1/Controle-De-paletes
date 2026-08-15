@@ -81,6 +81,14 @@ class FichasTecnicasView extends ConsumerWidget {
     final medidaController = TextEditingController();
     final qpController = TextEditingController();
     final referenciaController = TextEditingController();
+    final gramaturaController = TextEditingController();
+    final colunaController = TextEditingController();
+    final cobbInternoController = TextEditingController();
+    final cobbExternoController = TextEditingController();
+    final mullenController = TextEditingController();
+    final compressaoController = TextEditingController();
+    final resinaInternaController = TextEditingController();
+    final resinaExternaController = TextEditingController();
     String? clienteIdSelecionado = clientes.first.id;
     String? composicaoIdSelecionada = composicoes.first.id;
 
@@ -156,6 +164,52 @@ class FichasTecnicasView extends ConsumerWidget {
                       labelText: 'Referência (opcional)',
                     ),
                   ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(),
+                  ),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Qualidade (opcional)'),
+                  ),
+                  TextFormField(
+                    controller: gramaturaController,
+                    decoration: const InputDecoration(labelText: 'Gramatura'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  TextFormField(
+                    controller: colunaController,
+                    decoration: const InputDecoration(labelText: 'Coluna'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  TextFormField(
+                    controller: cobbInternoController,
+                    decoration: const InputDecoration(labelText: 'Cobb Interno'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  TextFormField(
+                    controller: cobbExternoController,
+                    decoration: const InputDecoration(labelText: 'Cobb Externo'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  TextFormField(
+                    controller: mullenController,
+                    decoration: const InputDecoration(labelText: 'Mullen'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  TextFormField(
+                    controller: compressaoController,
+                    decoration: const InputDecoration(labelText: 'Compressão'),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  TextFormField(
+                    controller: resinaInternaController,
+                    decoration: const InputDecoration(labelText: 'Resina Interna'),
+                  ),
+                  TextFormField(
+                    controller: resinaExternaController,
+                    decoration: const InputDecoration(labelText: 'Resina Externa'),
+                  ),
                 ],
               ),
             ),
@@ -179,6 +233,30 @@ class FichasTecnicasView extends ConsumerWidget {
                       ? null
                       : referenciaController.text.trim(),
                   ativo: true,
+                  gramatura: double.tryParse(
+                    gramaturaController.text.replaceAll(',', '.'),
+                  ),
+                  coluna: double.tryParse(
+                    colunaController.text.replaceAll(',', '.'),
+                  ),
+                  cobbInterno: double.tryParse(
+                    cobbInternoController.text.replaceAll(',', '.'),
+                  ),
+                  cobbExterno: double.tryParse(
+                    cobbExternoController.text.replaceAll(',', '.'),
+                  ),
+                  mullen: double.tryParse(
+                    mullenController.text.replaceAll(',', '.'),
+                  ),
+                  compressao: double.tryParse(
+                    compressaoController.text.replaceAll(',', '.'),
+                  ),
+                  resinaInterna: resinaInternaController.text.trim().isEmpty
+                      ? null
+                      : resinaInternaController.text.trim(),
+                  resinaExterna: resinaExternaController.text.trim().isEmpty
+                      ? null
+                      : resinaExternaController.text.trim(),
                 );
                 await ref
                     .read(cadastrosRepositoryProvider)
