@@ -148,7 +148,7 @@ Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer
 | 4 | Consulta em tempo real (Conversão) + apontamento próprio (chapa elaborada) — **entregue**, testado em `feat/consulta-conversao`. Só OPs com prefixo **802** entram na fila de trabalho da Conversão. Fórmula própria por pacote/camada, com campos novos na FT (ver 5.3, 9.1) |
 | 5 | Refugo (motivo pré-definido) + Ocorrências de Qualidade (segregação parcial/total, saldo do palete, ações por perfil, histórico) — **entregue**, testado em `feat/refugo-qualidade`. Leitura de código de barras de verdade fica pro Sprint 6 (ver 9.5) |
 | 6 | Geração e impressão de etiqueta (PDF + rede WiFi) — **adiado**: layout da etiqueta depende de aprovação da gerência. Não bloqueia nenhum sprint seguinte (as ações que dependeriam de ler código de barras já funcionam por toque na lista — ver 9.5) |
-| 7 | Dashboard e relatórios (desktop) — próximo, seguindo fora de ordem por causa do adiamento do Sprint 6 |
+| 7 | Dashboard e relatórios (desktop) — **implementado**, aguardando teste. Acessível pelo Admin em Cadastros. KPIs (OPs abertas/concluídas, ocorrências em análise) + produção por dia/setor (linha) + refugo por motivo (barra), com `fl_chart` |
 | 8 | Modo offline (SQLite local + sincronização) |
 | 9 | Testes com usuários piloto (Onduladeira + Conversão), ajustes finais |
 
