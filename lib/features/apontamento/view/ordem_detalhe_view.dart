@@ -113,9 +113,9 @@ class OrdemDetalheView extends ConsumerWidget {
                     },
                   ),
                   const SizedBox(height: 8),
-                  Align(
+                  const Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Tipo de chapa: ${ordem.tipoChapa}'),
+                    child: Text('Tipo de chapa: semi_elaborado'),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -154,7 +154,6 @@ class OrdemDetalheView extends ConsumerWidget {
                                 alturaMedidaMm: double.parse(
                                   alturaController.text.replaceAll(',', '.'),
                                 ),
-                                tipoChapa: ordem.tipoChapa,
                                 responsavelId: responsavelId,
                               );
                           ref.invalidate(_paletesDaOrdemProvider(ordem.id));

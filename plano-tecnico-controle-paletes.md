@@ -18,7 +18,6 @@ Nem todo pedido passa pelas duas etapas: alguns terminam na chapa semi-elaborada
 
 Isso importa pro app porque **o `tipo_chapa` de um apontamento reflete o setor que apontou, não o prefixo da OP**: todo apontamento feito pela Onduladeira é sempre `semi_elaborado` (é o que ela produz, esteja a OP destinada a virar elaborada depois ou não); todo apontamento feito pela Conversão é sempre `elaborado`. O prefixo 802/803 serve pra outra coisa — decidir se aquela OP **precisa** passar pela Conversão, o que afeta quando ela aparece na fila de trabalho da Conversão (Sprint 4) e quando ela é considerada `concluída`.
 
-> ⚠️ **Pendência conhecida**: o código do Sprint 3 (`OrdemProducaoInfo.tipoChapa`, em `lib/domain/entities/palete.dart`) hoje deriva `tipo_chapa` do prefixo da OP (803→elaborado, 802→semi-elaborado) para o apontamento da Onduladeira. Isso está errado nos dois sentidos: o mapeamento ficou invertido, e mais fundamental — o apontamento da Onduladeira deveria sempre gravar `semi_elaborado`, direto, sem depender do prefixo nenhum. A corrigir.
 
 ---
 
@@ -183,11 +182,28 @@ Observações:
 - `quantidade_calculada` é sempre gravada pelo app a partir da fórmula `(altura_medida_mm ÷ espessura_mm da composição) × qp_padrao da FT` — nunca editável direto pelo usuário. Ver seção 9 para o detalhe de cada termo.
 - `codigo_barras` fica único globalmente, é o valor impresso na etiqueta e usado na consulta/leitura pela Conversão e pela Qualidade.
 
-### 5.1 Pendências de schema conhecidas (ainda não implementadas)
+### 5.1 Campos de qualidade da Ficha Técnica
+
+Colunas adicionadas depois do Sprint 1, pra cobrir as especificações técnicas do produto (ver 9.6):
+
+```sql
+alter table fichas_tecnicas
+  add column gramatura numeric,
+  add column coluna numeric,
+  add column cobb_interno numeric,
+  add column cobb_externo numeric,
+  add column mullen numeric,
+  add column compressao numeric,
+  add column resina_interna text,
+  add column resina_externa text;
+```
+
+Todas opcionais (nullable) — nem toda FT precisa preencher tudo de cara.
+
+### 5.2 Pendências de schema conhecidas (ainda não implementadas)
 
 Coisas que já sabemos que vão exigir `alter table` quando os sprints correspondentes chegarem — registrado aqui pra não esquecer, mas **nada disso está no banco ainda**:
 
-- **`fichas_tecnicas` — campos de qualidade do produto**: `gramatura`, `coluna`, `cobb_interno`, `cobb_externo`, `mullen`, `compressao`, `resina_interna`, `resina_externa`. São específicos de cada Ficha Técnica (não da Composição), e a tela de cadastro do Sprint 1 já foi entregue sem eles — falta adicionar tanto o schema quanto os campos no formulário.
 - **`refugos.motivo` — hoje é texto livre**, mas a regra de negócio pede uma lista fechada: `Quebra na produção`, `Erro de medida`, `Amassado/rasgado`, `Outro`. Falta o `check constraint` (ou uma tabela de domínio) e o formulário virar um seletor em vez de texto livre.
 - **`ocorrencias_qualidade` / segregação de palete** — o schema atual não modela: (a) o **saldo disponível** do palete (quantidade original menos o que já foi debitado por reprovação), (b) o **flag "segregado"** que precisa persistir no histórico mesmo depois do saldo zerar, nem (c) a distinção entre as ações possíveis por perfil (ver seção 9.4). Isso será desenhado no Sprint 5, mas provavelmente exige uma coluna de saldo em `paletes` (ex: `quantidade_reprovada`, com `saldo_disponivel` calculado) e talvez um campo de "ação" em `ocorrencias_qualidade`.
 
@@ -236,9 +252,9 @@ O mesmo padrão (leitura geral + escrita restrita ao perfil dono) se repete para
 | Sprint | Entrega |
 |---|---|
 | 0 | Criação do repositório no GitHub, setup do projeto Flutter, projeto Supabase, autenticação, deploy do schema + RLS |
-| 1 | Cadastros base (Admin): Cliente, Composição, Ficha Técnica, OP — **entregue**, testado em `feat/cadastros`. Falta os campos de qualidade da FT (ver 5.1) |
+| 1 | Cadastros base (Admin): Cliente, Composição, Ficha Técnica (com campos de qualidade), OP — **entregue** |
 | 2 | Gestão de Usuários (Admin): criar/editar/trocar senha/desativar direto pelo app — **entregue**, testado em `feat/usuarios` |
-| 3 | Apontamento de palete (Onduladeira): tela operacional, cálculo automático, gravação — **entregue**, testado em `feat/apontamento-palete`. Tem a pendência do `tipo_chapa` (ver seção 1) |
+| 3 | Apontamento de palete (Onduladeira): tela operacional, cálculo automático, gravação — **entregue**, testado em `feat/apontamento-palete` |
 | 4 | Consulta em tempo real (Conversão) + leitura de código de barras — só OPs com prefixo **802** (as que precisam de Conversão) entram na fila de trabalho dela |
 | 5 | Refugo (motivo pré-definido) + Ocorrências de Qualidade (segregação parcial/total, saldo do palete, ações por perfil, histórico) |
 | 6 | Geração e impressão de etiqueta (PDF + rede WiFi) |
@@ -303,7 +319,7 @@ Ao ler o código de barras de um palete, as ações disponíveis mudam conforme 
 
 ### 9.6 Campos de qualidade da Ficha Técnica
 
-Cada Ficha Técnica tem especificações técnicas próprias do produto (não da Composição/tipo de onda, que é compartilhada entre várias FTs): `Gramatura`, `Coluna`, `Cobb Interno`, `Cobb Externo`, `Mullen`, `Compressão`, `Resina Interna`, `Resina Externa`. Ainda não implementados — ver pendência em 5.1.
+Cada Ficha Técnica tem especificações técnicas próprias do produto (não da Composição/tipo de onda, que é compartilhada entre várias FTs): `Gramatura`, `Coluna`, `Cobb Interno`, `Cobb Externo`, `Mullen`, `Compressão`, `Resina Interna`, `Resina Externa`. Todos opcionais no cadastro — ver 5.1.
 
 ### 9.7 Login por usuário, não por email
 

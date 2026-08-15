@@ -54,10 +54,13 @@ class PaletesRepository {
   /// é o próximo da OP; se dois apontamentos colidirem nesse número, o
   /// unique constraint do banco rejeita e o app mostra o erro (fluxo de um
   /// operador por vez, então a colisão é rara).
+  ///
+  /// tipo_chapa é sempre 'semi_elaborado' aqui: é o que a Onduladeira
+  /// produz, não depende do prefixo da OP (isso só decide se a OP vai
+  /// precisar de Conversão depois — ver plano técnico, seção 1).
   Future<void> registrarPalete({
     required OrdemProducaoInfo ordem,
     required double alturaMedidaMm,
-    required String tipoChapa,
     required String responsavelId,
   }) async {
     final quantidadeCalculada =
@@ -77,7 +80,7 @@ class PaletesRepository {
       'numero_sequencial': proximoNumero,
       'altura_medida_mm': alturaMedidaMm,
       'quantidade_calculada': quantidadeCalculada,
-      'tipo_chapa': tipoChapa,
+      'tipo_chapa': 'semi_elaborado',
       'setor_origem': 'onduladeira',
       'responsavel_id': responsavelId,
     });
