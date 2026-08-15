@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 
 import '../../../data/repositories/paletes_repository.dart';
 import '../../../domain/entities/palete.dart';
+import '../../../shared/widgets/lancar_refugo_dialog.dart';
+import '../../../shared/widgets/palete_acoes.dart';
 import '../../auth/controller/auth_controller.dart';
 
 final _paletesDaOrdemProvider = FutureProvider.autoDispose
@@ -21,7 +23,16 @@ class OrdemDetalheConversaoView extends ConsumerWidget {
     final paletesAsync = ref.watch(_paletesDaOrdemProvider(ordem.id));
 
     return Scaffold(
-      appBar: AppBar(title: Text('OP ${ordem.numeroOp}')),
+      appBar: AppBar(
+        title: Text('OP ${ordem.numeroOp}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_sweep_outlined),
+            tooltip: 'Lançar refugo',
+            onPressed: () => abrirDialogoLancarRefugo(context, ref, ordemProducaoId: ordem.id),
+          ),
+        ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -50,16 +61,41 @@ class OrdemDetalheConversaoView extends ConsumerWidget {
                 final daOnduladeira =
                     paletes.where((p) => p.setorOrigem == 'onduladeira').toList();
                 final daConversao = paletes.where((p) => p.setorOrigem == 'conversao').toList();
+                Future<void> aoTocarPalete(Palete p) async {
+                  await abrirAcoesPalete(context, ref, palete: p, ordem: ordem);
+                  ref.invalidate(_paletesDaOrdemProvider(ordem.id));
+                }
+
+                final produzidoOnduladeira = daOnduladeira.fold<int>(
+                  0,
+                  (soma, p) => soma + p.saldoDisponivel,
+                );
+                final apontadoConversao = daConversao.fold<int>(
+                  0,
+                  (soma, p) => soma + p.saldoDisponivel,
+                );
+
                 return ListView(
                   children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'Produzido pela Onduladeira: $produzidoOnduladeira · '
+                        'Apontado pela Conversão: $apontadoConversao',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     _SecaoPaletes(
                       titulo: 'Produzido pela Onduladeira',
                       paletes: daOnduladeira,
+                      onTapPalete: aoTocarPalete,
                     ),
                     const Divider(height: 24),
                     _SecaoPaletes(
                       titulo: 'Apontado pela Conversão',
                       paletes: daConversao,
+                      onTapPalete: aoTocarPalete,
                     ),
                   ],
                 );
@@ -78,8 +114,20 @@ class OrdemDetalheConversaoView extends ConsumerWidget {
   }
 
   Future<void> _abrirFormularioApontamento(BuildContext context, WidgetRef ref) async {
+    if (ordem.pacotesPorCamada == null || ordem.pecasPorPacote == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Ficha Técnica sem dados de paletização (pacotes por camada, peças por '
+            'pacote) — cadastre em Fichas Técnicas antes de apontar.',
+          ),
+        ),
+      );
+      return;
+    }
+
     final formKey = GlobalKey<FormState>();
-    final alturaController = TextEditingController();
+    final camadasController = TextEditingController();
     String? erro;
     var salvando = false;
 
@@ -87,10 +135,9 @@ class OrdemDetalheConversaoView extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) {
-          final altura = double.tryParse(alturaController.text.replaceAll(',', '.'));
-          final quantidadePrevista = altura == null
-              ? null
-              : ((altura / ordem.composicaoEspessuraMm) * ordem.qpPadrao).floor();
+          final camadas = int.tryParse(camadasController.text);
+          final quantidadePrevista =
+              camadas == null ? null : camadas * ordem.pacotesPorCamada! * ordem.pecasPorPacote!;
 
           return AlertDialog(
             title: const Text('Novo apontamento'),
@@ -100,13 +147,13 @@ class OrdemDetalheConversaoView extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextFormField(
-                    controller: alturaController,
-                    decoration: const InputDecoration(labelText: 'Altura medida (mm)'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    controller: camadasController,
+                    decoration: const InputDecoration(labelText: 'Camadas de altura'),
+                    keyboardType: TextInputType.number,
                     onChanged: (_) => setState(() {}),
                     validator: (v) {
-                      final valor = double.tryParse((v ?? '').replaceAll(',', '.'));
-                      if (valor == null || valor <= 0) return 'Informe um número válido';
+                      final n = int.tryParse(v ?? '');
+                      if (n == null || n <= 0) return 'Informe um número maior que zero';
                       return null;
                     },
                   ),
@@ -149,9 +196,7 @@ class OrdemDetalheConversaoView extends ConsumerWidget {
                               .read(paletesRepositoryProvider)
                               .registrarPalete(
                                 ordem: ordem,
-                                alturaMedidaMm: double.parse(
-                                  alturaController.text.replaceAll(',', '.'),
-                                ),
+                                camadas: int.parse(camadasController.text),
                                 responsavelId: responsavelId,
                                 setorOrigem: 'conversao',
                               );
@@ -181,8 +226,9 @@ class OrdemDetalheConversaoView extends ConsumerWidget {
 class _SecaoPaletes extends StatelessWidget {
   final String titulo;
   final List<Palete> paletes;
+  final void Function(Palete)? onTapPalete;
 
-  const _SecaoPaletes({required this.titulo, required this.paletes});
+  const _SecaoPaletes({required this.titulo, required this.paletes, this.onTapPalete});
 
   @override
   Widget build(BuildContext context) {
@@ -199,15 +245,26 @@ class _SecaoPaletes extends StatelessWidget {
             child: Text('Nenhum palete ainda.'),
           )
         else
-          ...paletes.map(
-            (p) => ListTile(
-              title: Text('Palete ${p.numeroSequencial}'),
+          ...paletes.map((p) {
+            final medida = p.setorOrigem == 'conversao'
+                ? 'Camadas ${p.camadas ?? '—'}'
+                : 'Altura ${p.alturaMedidaMm?.toStringAsFixed(0) ?? '—'}mm';
+            return ListTile(
+              title: Text(
+                'Palete ${p.numeroSequencial}'
+                '${p.rotuloSegregacao != null ? ' · ${p.rotuloSegregacao}' : ''}',
+                style: p.segregado
+                    ? TextStyle(color: Theme.of(context).colorScheme.error)
+                    : null,
+              ),
               subtitle: Text(
-                'Altura ${p.alturaMedidaMm.toStringAsFixed(0)}mm · Qtd ${p.quantidadeCalculada}',
+                '$medida · Saldo ${p.saldoDisponivel}/${p.quantidadeCalculada}'
+                '${p.revisorNome != null ? ' · revisado por ${p.revisorNome}' : ''}',
               ),
               trailing: Text(DateFormat('HH:mm').format(p.dataHora)),
-            ),
-          ),
+              onTap: onTapPalete == null ? null : () => onTapPalete!(p),
+            );
+          }),
       ],
     );
   }

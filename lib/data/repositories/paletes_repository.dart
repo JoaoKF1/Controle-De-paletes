@@ -4,10 +4,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/palete.dart';
 import '../remote/supabase_provider.dart';
 
-const _selectComJoins =
-    '*, fichas_tecnicas(codigo_ft, qp_padrao, clientes(razao_social), composicoes(espessura_mm))';
-const _selectComJoinsFiltradoPorFt =
-    '*, fichas_tecnicas!inner(codigo_ft, qp_padrao, clientes(razao_social), composicoes(espessura_mm))';
+const _camposFichaTecnica =
+    'codigo_ft, qp_padrao, pacotes_por_camada, pecas_por_pacote, '
+    'clientes(razao_social), composicoes(espessura_mm)';
+const _selectComJoins = '*, fichas_tecnicas($_camposFichaTecnica)';
+const _selectComJoinsFiltradoPorFt = '*, fichas_tecnicas!inner($_camposFichaTecnica)';
+
+const _selectPaleteComRevisor = '*, revisor:profiles!paletes_revisado_por_fkey(nome)';
 
 class PaletesRepository {
   final SupabaseClient _client;
@@ -55,35 +58,60 @@ class PaletesRepository {
     return (dados as List).map((e) => OrdemProducaoInfo.fromMap(e)).toList();
   }
 
+  Future<Palete> buscarPaletePorId(String id) async {
+    final dados = await _client.from('paletes').select(_selectPaleteComRevisor).eq('id', id).single();
+    return Palete.fromMap(dados);
+  }
+
   Future<List<Palete>> listarPaletesDaOrdem(String ordemProducaoId) async {
     final dados = await _client
         .from('paletes')
-        .select()
+        .select(_selectPaleteComRevisor)
         .eq('ordem_producao_id', ordemProducaoId)
         .order('numero_sequencial');
     return (dados as List).map((e) => Palete.fromMap(e)).toList();
   }
 
-  /// quantidade_calculada = (altura ÷ espessura da composição) × qp_padrão
-  /// da FT, arredondado pra baixo — só conta chapa inteira. numero_sequencial
-  /// é o próximo da OP (não por setor — o unique constraint do banco é só
-  /// em ordem_producao_id + numero_sequencial); se dois apontamentos
-  /// colidirem nesse número, o banco rejeita e o app mostra o erro (fluxo
-  /// de um operador por vez, então a colisão é rara).
+  /// Onduladeira: quantidade = (altura ÷ espessura da composição) ×
+  /// qp_padrão da FT — conta chapas, medindo altura em mm.
+  /// Conversão: quantidade = camadas × pacotes por camada × peças por
+  /// pacote — conta caixas já paletizadas, contando camadas direto (não
+  /// mede mm — ver plano técnico, 9.1).
   ///
-  /// tipo_chapa deriva de setorOrigem, nunca é escolha do usuário: sempre
-  /// 'semi_elaborado' pra Onduladeira, sempre 'elaborado' pra Conversão —
-  /// não depende do prefixo da OP (isso só decide se a OP vai precisar de
-  /// Conversão depois — ver plano técnico, seção 1).
+  /// numero_sequencial é o próximo da OP (não por setor — o unique
+  /// constraint do banco é só em ordem_producao_id + numero_sequencial);
+  /// se dois apontamentos colidirem nesse número, o banco rejeita e o app
+  /// mostra o erro (fluxo de um operador por vez, então a colisão é rara).
+  ///
+  /// tipo_chapa nunca é escolha do usuário. Pra Conversão é sempre
+  /// 'elaborado' (ela só processa OP 802, que sai da Onduladeira ainda
+  /// semi-elaborada e vira elaborada ao passar por lá). Pra Onduladeira
+  /// depende do prefixo da OP: 803 já é o produto final ('elaborado', vai
+  /// direto pra Expedição sem Conversão); 802 ainda é intermediário
+  /// ('semi_elaborado', precisa da Conversão depois) — ver plano técnico,
+  /// seção 1.
   Future<void> registrarPalete({
     required OrdemProducaoInfo ordem,
-    required double alturaMedidaMm,
     required String responsavelId,
     required String setorOrigem,
+    double? alturaMedidaMm,
+    int? camadas,
   }) async {
-    final quantidadeCalculada =
-        ((alturaMedidaMm / ordem.composicaoEspessuraMm) * ordem.qpPadrao).floor();
-    final tipoChapa = setorOrigem == 'conversao' ? 'elaborado' : 'semi_elaborado';
+    final int quantidadeCalculada;
+    if (setorOrigem == 'conversao') {
+      if (ordem.pacotesPorCamada == null || ordem.pecasPorPacote == null) {
+        throw Exception(
+          'Ficha Técnica sem dados de paletização da Conversão '
+          '(pacotes por camada, peças por pacote).',
+        );
+      }
+      quantidadeCalculada = camadas! * ordem.pacotesPorCamada! * ordem.pecasPorPacote!;
+    } else {
+      quantidadeCalculada = ((alturaMedidaMm! / ordem.composicaoEspessuraMm) * ordem.qpPadrao).floor();
+    }
+    final tipoChapa = setorOrigem == 'conversao' || ordem.numeroOp.startsWith('803')
+        ? 'elaborado'
+        : 'semi_elaborado';
 
     final ultimo = await _client
         .from('paletes')
@@ -98,6 +126,7 @@ class PaletesRepository {
       'ordem_producao_id': ordem.id,
       'numero_sequencial': proximoNumero,
       'altura_medida_mm': alturaMedidaMm,
+      'camadas': camadas,
       'quantidade_calculada': quantidadeCalculada,
       'tipo_chapa': tipoChapa,
       'setor_origem': setorOrigem,

@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 
 import '../../../data/repositories/paletes_repository.dart';
 import '../../../domain/entities/palete.dart';
+import '../../../shared/widgets/lancar_refugo_dialog.dart';
+import '../../../shared/widgets/palete_acoes.dart';
 import '../../auth/controller/auth_controller.dart';
 
 final _paletesDaOrdemProvider = FutureProvider.autoDispose
@@ -21,7 +23,16 @@ class OrdemDetalheView extends ConsumerWidget {
     final paletesAsync = ref.watch(_paletesDaOrdemProvider(ordem.id));
 
     return Scaffold(
-      appBar: AppBar(title: Text('OP ${ordem.numeroOp}')),
+      appBar: AppBar(
+        title: Text('OP ${ordem.numeroOp}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_sweep_outlined),
+            tooltip: 'Lançar refugo',
+            onPressed: () => abrirDialogoLancarRefugo(context, ref, ordemProducaoId: ordem.id),
+          ),
+        ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -56,12 +67,23 @@ class OrdemDetalheView extends ConsumerWidget {
                   itemBuilder: (context, i) {
                     final p = paletes[i];
                     return ListTile(
-                      title: Text('Palete ${p.numeroSequencial}'),
+                      title: Text(
+                        'Palete ${p.numeroSequencial}'
+                        '${p.rotuloSegregacao != null ? ' · ${p.rotuloSegregacao}' : ''}',
+                        style: p.segregado
+                            ? TextStyle(color: Theme.of(context).colorScheme.error)
+                            : null,
+                      ),
                       subtitle: Text(
-                        'Altura ${p.alturaMedidaMm.toStringAsFixed(0)}mm · '
-                        'Qtd ${p.quantidadeCalculada} · ${p.tipoChapa}',
+                        'Altura ${p.alturaMedidaMm?.toStringAsFixed(0) ?? '—'}mm · '
+                        'Saldo ${p.saldoDisponivel}/${p.quantidadeCalculada} · ${p.tipoChapa}'
+                        '${p.revisorNome != null ? ' · revisado por ${p.revisorNome}' : ''}',
                       ),
                       trailing: Text(DateFormat('HH:mm').format(p.dataHora)),
+                      onTap: () async {
+                        await abrirAcoesPalete(context, ref, palete: p, ordem: ordem);
+                        ref.invalidate(_paletesDaOrdemProvider(ordem.id));
+                      },
                     );
                   },
                 );
@@ -113,9 +135,9 @@ class OrdemDetalheView extends ConsumerWidget {
                     },
                   ),
                   const SizedBox(height: 8),
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Tipo de chapa: semi_elaborado'),
+                    child: Text('Tipo de chapa: ${ordem.tipoChapaOnduladeira}'),
                   ),
                   const SizedBox(height: 12),
                   Text(

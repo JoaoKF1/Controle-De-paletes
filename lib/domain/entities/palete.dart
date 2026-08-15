@@ -1,41 +1,66 @@
 /// Espelha a tabela `paletes`. `quantidade_calculada` nunca é digitada pelo
-/// usuário — é sempre derivada de `altura_medida_mm` na hora do apontamento.
+/// usuário — é sempre derivada na hora do apontamento: de `altura_medida_mm`
+/// pra Onduladeira, de `camadas` pra Conversão (ver plano técnico, 9.1).
 class Palete {
   final String id;
   final String ordemProducaoId;
   final int numeroSequencial;
-  final double alturaMedidaMm;
+  final double? alturaMedidaMm;
+  final int? camadas;
   final int quantidadeCalculada;
   final String tipoChapa;
   final String setorOrigem;
   final String? codigoBarras;
   final String responsavelId;
   final DateTime dataHora;
+  final int quantidadeReprovada;
+  final int saldoDisponivel;
+  final String? revisorNome;
 
   const Palete({
     required this.id,
     required this.ordemProducaoId,
     required this.numeroSequencial,
-    required this.alturaMedidaMm,
+    this.alturaMedidaMm,
+    this.camadas,
     required this.quantidadeCalculada,
     required this.tipoChapa,
     required this.setorOrigem,
     this.codigoBarras,
     required this.responsavelId,
     required this.dataHora,
+    required this.quantidadeReprovada,
+    required this.saldoDisponivel,
+    this.revisorNome,
   });
+
+  /// Rótulo de segregação pra exibir na lista — null se nunca foi
+  /// reprovado/segregado nada. Distingue total (saldo zerado) de parcial
+  /// (ainda sobrou saldo), porque as duas coisas são visualmente diferentes
+  /// pra quem está lendo a lista (ver plano técnico, 9.4).
+  String? get rotuloSegregacao {
+    if (quantidadeReprovada == 0) return null;
+    return saldoDisponivel > 0 ? 'SEGREGADO PARCIALMENTE' : 'SEGREGADO';
+  }
+
+  bool get segregado => quantidadeReprovada > 0;
 
   factory Palete.fromMap(Map<String, dynamic> map) => Palete(
         id: map['id'] as String,
         ordemProducaoId: map['ordem_producao_id'] as String,
         numeroSequencial: map['numero_sequencial'] as int,
-        alturaMedidaMm: (map['altura_medida_mm'] as num).toDouble(),
+        alturaMedidaMm: (map['altura_medida_mm'] as num?)?.toDouble(),
+        camadas: map['camadas'] as int?,
         quantidadeCalculada: map['quantidade_calculada'] as int,
         tipoChapa: map['tipo_chapa'] as String,
         setorOrigem: map['setor_origem'] as String,
         codigoBarras: map['codigo_barras'] as String?,
         responsavelId: map['responsavel_id'] as String,
         dataHora: DateTime.parse(map['data_hora'] as String),
+        quantidadeReprovada: map['quantidade_reprovada'] as int? ?? 0,
+        saldoDisponivel:
+            map['saldo_disponivel'] as int? ?? map['quantidade_calculada'] as int,
+        revisorNome: (map['revisor'] as Map<String, dynamic>?)?['nome'] as String?,
       );
 }
 
@@ -53,6 +78,10 @@ class OrdemProducaoInfo {
   final String clienteNome;
   final double composicaoEspessuraMm;
 
+  // Paletização da Conversão — só preenchido em FTs de OP 802 (ver 1).
+  final int? pacotesPorCamada;
+  final int? pecasPorPacote;
+
   const OrdemProducaoInfo({
     required this.id,
     required this.numeroOp,
@@ -63,6 +92,8 @@ class OrdemProducaoInfo {
     required this.qpPadrao,
     required this.clienteNome,
     required this.composicaoEspessuraMm,
+    this.pacotesPorCamada,
+    this.pecasPorPacote,
   });
 
   factory OrdemProducaoInfo.fromMap(Map<String, dynamic> map) {
@@ -79,6 +110,14 @@ class OrdemProducaoInfo {
       qpPadrao: ft['qp_padrao'] as int,
       clienteNome: cliente['razao_social'] as String,
       composicaoEspessuraMm: (composicao['espessura_mm'] as num).toDouble(),
+      pacotesPorCamada: ft['pacotes_por_camada'] as int?,
+      pecasPorPacote: ft['pecas_por_pacote'] as int?,
     );
   }
+
+  /// Tipo de chapa quando é a Onduladeira quem aponta: 803 já é produto
+  /// final ('elaborado', vai direto pra Expedição sem Conversão); 802
+  /// ainda é intermediário ('semi_elaborado', precisa da Conversão depois).
+  /// Não usar pra apontamento da Conversão — lá é sempre 'elaborado'.
+  String get tipoChapaOnduladeira => numeroOp.startsWith('803') ? 'elaborado' : 'semi_elaborado';
 }

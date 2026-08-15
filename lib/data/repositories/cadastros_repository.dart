@@ -41,6 +41,10 @@ class CadastrosRepository {
     return _client.from('fichas_tecnicas').insert(ficha.toInsertMap());
   }
 
+  Future<void> atualizarFichaTecnica(FichaTecnica ficha) {
+    return _client.from('fichas_tecnicas').update(ficha.toInsertMap()).eq('id', ficha.id);
+  }
+
   Future<List<OrdemProducao>> listarOrdensProducao() async {
     final dados = await _client
         .from('ordens_producao')
