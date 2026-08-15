@@ -66,23 +66,32 @@ class OrdemDetalheConversaoView extends ConsumerWidget {
                   ref.invalidate(_paletesDaOrdemProvider(ordem.id));
                 }
 
-                final produzidoOnduladeira = daOnduladeira.fold<int>(
+                // Chapas total: o que a Onduladeira já produziu pra essa OP,
+                // líquido de qualquer reprovação de qualidade do lado dela.
+                // Chapas disponíveis: esse total menos o que a Conversão já
+                // consumiu apontando (1 caixa apontada = 1 chapa debitada —
+                // ver plano técnico, 9.1).
+                final chapasTotal = daOnduladeira.fold<int>(
                   0,
                   (soma, p) => soma + p.saldoDisponivel,
                 );
-                final apontadoConversao = daConversao.fold<int>(
+                final chapasConsumidas = daConversao.fold<int>(
                   0,
-                  (soma, p) => soma + p.saldoDisponivel,
+                  (soma, p) => soma + p.quantidadeCalculada,
                 );
+                final chapasDisponiveis = chapasTotal - chapasConsumidas;
 
                 return ListView(
                   children: [
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        'Produzido pela Onduladeira: $produzidoOnduladeira · '
-                        'Apontado pela Conversão: $apontadoConversao',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        'Chapas total: $chapasTotal · Chapas disponíveis: $chapasDisponiveis',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: chapasDisponiveis < 0
+                                  ? Theme.of(context).colorScheme.error
+                                  : null,
+                            ),
                       ),
                     ),
                     const SizedBox(height: 8),

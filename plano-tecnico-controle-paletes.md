@@ -175,7 +175,7 @@ Conversão:   camadas × pacotes_por_camada da FT × pecas_por_pacote da FT
 - `tipo_chapa` nunca é seleção manual. Pra Conversão é sempre `elaborado`. Pra Onduladeira depende do prefixo da OP: `elaborado` se a OP começa com 803 (produto final), `semi_elaborado` se começa com 802 (ainda intermediário) — ver seção 1.
 - O apontamento da Conversão só funciona se a Ficha Técnica tiver os 2 campos de paletização preenchidos (ver 5.3) — sem eles o app recusa com uma mensagem, em vez de calcular errado.
 
-Na tela de detalhe da OP (Conversão), aparece um resumo com o total produzido pela Onduladeira e o total já apontado pela Conversão — informativo, não é um débito automático de estoque (as unidades são diferentes: chapas de um lado, caixas de outro). O apontamento da Conversão continua sendo feito palete a palete, quando aquele palete estiver completo.
+Na tela de detalhe da OP (Conversão) aparece **Chapas total** e **Chapas disponíveis**: assume-se 1 caixa apontada pela Conversão = 1 chapa consumida da Onduladeira (uma chapa vira uma caixa no processo). `chapas_total` é a soma do `saldo_disponivel` de tudo que a Onduladeira já apontou nessa OP (líquido de reprovação de qualidade do lado dela); `chapas_disponiveis` é esse total menos a soma de `quantidade_calculada` de tudo que a Conversão já apontou. Fica vermelho se ficar negativo (apontou mais caixa do que tinha chapa disponível), mas isso é só aviso visual — não bloqueia o apontamento. O apontamento da Conversão continua sendo feito palete a palete, quando aquele palete estiver completo.
 
 ### 9.2 Visibilidade de OP para a Conversão
 
