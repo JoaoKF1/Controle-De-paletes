@@ -18,7 +18,6 @@ Nem todo pedido passa pelas duas etapas: alguns terminam na chapa semi-elaborada
 
 Isso importa pro app porque **o `tipo_chapa` de um apontamento reflete o setor que apontou, não o prefixo da OP**: todo apontamento feito pela Onduladeira é sempre `semi_elaborado` (é o que ela produz, esteja a OP destinada a virar elaborada depois ou não); todo apontamento feito pela Conversão é sempre `elaborado`. O prefixo 802/803 serve pra outra coisa — decidir se aquela OP **precisa** passar pela Conversão, o que afeta quando ela aparece na fila de trabalho da Conversão (Sprint 4) e quando ela é considerada `concluída`.
 
-
 ---
 
 ## 2. Perfis e responsabilidades
@@ -83,128 +82,30 @@ Cada pasta dentro de `features/` segue o mesmo padrão interno: `view/`, `contro
 
 ---
 
-## 5. Schema SQL (Supabase / Postgres)
+## 5. Schema (Supabase / Postgres)
 
-> Os blocos SQL abaixo (e nas seções 6 e 9) documentam **o que já foi aplicado** e por quê — não são instruções pra copiar e colar. A partir de agora, toda mudança de schema é um arquivo novo em `supabase/migrations/`, aplicado via `supabase db push` (ver seção 7). `supabase db pull` mantém essa pasta sincronizada com o banco real.
+O schema real do banco vive em `supabase/migrations/` — esse é o histórico versionado e a fonte de verdade, mantido sincronizado com `supabase db pull` e alterado com `supabase db push` (ver seção 7). Esta seção descreve as tabelas em prosa, pra entender o modelo de dados sem precisar abrir os arquivos de migration.
 
-```sql
--- Perfis de usuário (ligado ao auth.users nativo do Supabase)
-create table profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  login text not null unique,
-  nome text not null,
-  perfil text not null check (perfil in ('onduladeira', 'conversao', 'qualidade', 'admin')),
-  ativo boolean not null default true,
-  created_at timestamptz not null default now()
-);
-
-create table clientes (
-  id uuid primary key default gen_random_uuid(),
-  razao_social text not null,
-  cidade text not null,
-  uf text not null,
-  ativo boolean not null default true,
-  created_at timestamptz not null default now()
-);
-
-create table composicoes (
-  id uuid primary key default gen_random_uuid(),
-  codigo text not null unique,
-  espessura_mm numeric not null check (espessura_mm > 0),
-  created_at timestamptz not null default now()
-);
-
-create table fichas_tecnicas (
-  id uuid primary key default gen_random_uuid(),
-  codigo_ft text not null unique,
-  cliente_id uuid not null references clientes(id),
-  composicao_id uuid not null references composicoes(id),
-  medida_chapa text not null,
-  qp_padrao integer not null check (qp_padrao > 0),
-  referencia text,
-  ativo boolean not null default true,
-  created_at timestamptz not null default now()
-);
-
-create table ordens_producao (
-  id uuid primary key default gen_random_uuid(),
-  numero_op text not null unique,
-  ficha_tecnica_id uuid not null references fichas_tecnicas(id),
-  quantidade_pedida integer not null check (quantidade_pedida > 0),
-  data_pedido date not null check (data_pedido <= current_date),
-  status text not null default 'aberta' check (status in ('aberta', 'concluida')),
-  created_at timestamptz not null default now()
-);
-
-create table paletes (
-  id uuid primary key default gen_random_uuid(),
-  ordem_producao_id uuid not null references ordens_producao(id),
-  numero_sequencial integer not null,
-  altura_medida_mm numeric not null check (altura_medida_mm > 0),
-  quantidade_calculada integer not null,
-  tipo_chapa text not null default 'semi_elaborado' check (tipo_chapa in ('semi_elaborado', 'elaborado')),
-  setor_origem text not null check (setor_origem in ('onduladeira', 'conversao')),
-  codigo_barras text unique,
-  responsavel_id uuid not null references profiles(id),
-  data_hora timestamptz not null default now(),
-  unique (ordem_producao_id, numero_sequencial)
-);
-
-create table refugos (
-  id uuid primary key default gen_random_uuid(),
-  ordem_producao_id uuid not null references ordens_producao(id),
-  responsavel_id uuid not null references profiles(id),
-  quantidade integer not null check (quantidade > 0),
-  motivo text not null,
-  data_hora timestamptz not null default now()
-);
-
-create table ocorrencias_qualidade (
-  id uuid primary key default gen_random_uuid(),
-  palete_id uuid not null references paletes(id),
-  quantidade_afetada integer not null check (quantidade_afetada > 0),
-  motivo text not null,
-  status text not null default 'em_analise' check (status in ('em_analise', 'liberado', 'reprovado')),
-  aberto_por uuid not null references profiles(id),
-  data_abertura timestamptz not null default now()
-);
-
-create table historico_ocorrencia (
-  id uuid primary key default gen_random_uuid(),
-  ocorrencia_id uuid not null references ocorrencias_qualidade(id),
-  usuario_id uuid not null references profiles(id),
-  status_anterior text not null,
-  status_novo text not null,
-  data_hora timestamptz not null default now()
-);
-```
+- **`profiles`**: um perfil por usuário autenticado, ligado ao `auth.users` nativo do Supabase. Guarda `login` (o "usuário" curto que a pessoa digita), `nome`, `perfil` (`onduladeira`/`conversao`/`qualidade`/`admin`) e `ativo`.
+- **`clientes`**: cadastro simples — razão social, cidade, UF, ativo.
+- **`composicoes`**: os "tipos de onda" (ex: `T140M130T140/B`), cada um com sua `espessura_mm`.
+- **`fichas_tecnicas`**: o produto em si — código, cliente, composição, medida da chapa, `qp_padrao` (número de pilhas por palete) e as 8 colunas de qualidade opcionais (ver 9.6).
+- **`ordens_producao`**: a OP — número (cujo prefixo 802/803 define o roteamento, ver seção 1), ficha técnica, quantidade pedida, data do pedido e `status` (`aberta`/`concluida`).
+- **`paletes`**: cada apontamento — OP, número sequencial (único por OP), altura medida, quantidade calculada, `tipo_chapa`, `setor_origem` (`onduladeira`/`conversao`), código de barras (único globalmente, é o valor impresso na etiqueta), responsável e data/hora.
+- **`refugos`**: chapa perdida/descartada, vinculada à OP (não a um palete específico) — ver 9.3.
+- **`ocorrencias_qualidade`** e **`historico_ocorrencia`**: ocorrências abertas sobre um palete e o histórico de mudança de status — ver 9.4.
 
 Observações:
-- `paletes.numero_sequencial` é único **por OP** (não globalmente), refletido no `unique (ordem_producao_id, numero_sequencial)`.
-- `quantidade_calculada` é sempre gravada pelo app a partir da fórmula `(altura_medida_mm ÷ espessura_mm da composição) × qp_padrao da FT` — nunca editável direto pelo usuário. Ver seção 9 para o detalhe de cada termo.
-- `codigo_barras` fica único globalmente, é o valor impresso na etiqueta e usado na consulta/leitura pela Conversão e pela Qualidade.
+- `paletes.numero_sequencial` é único **por OP** (não globalmente).
+- `quantidade_calculada` é sempre gravada pelo app a partir da fórmula em 9.1 — nunca editável direto pelo usuário.
 
 ### 5.1 Campos de qualidade da Ficha Técnica
 
-Colunas adicionadas depois do Sprint 1, pra cobrir as especificações técnicas do produto (ver 9.6):
-
-```sql
-alter table fichas_tecnicas
-  add column gramatura numeric,
-  add column coluna numeric,
-  add column cobb_interno numeric,
-  add column cobb_externo numeric,
-  add column mullen numeric,
-  add column compressao numeric,
-  add column resina_interna text,
-  add column resina_externa text;
-```
-
-Todas opcionais (nullable) — nem toda FT precisa preencher tudo de cara.
+Colunas adicionadas depois do Sprint 1, pra cobrir as especificações técnicas do produto (ver 9.6): `gramatura`, `coluna`, `cobb_interno`, `cobb_externo`, `mullen`, `compressao`, `resina_interna`, `resina_externa`. Todas opcionais (nullable) — nem toda FT precisa preencher tudo de cara.
 
 ### 5.2 Pendências de schema conhecidas (ainda não implementadas)
 
-Coisas que já sabemos que vão exigir `alter table` quando os sprints correspondentes chegarem — registrado aqui pra não esquecer, mas **nada disso está no banco ainda**:
+Coisas que já sabemos que vão exigir uma migration nova quando os sprints correspondentes chegarem — registrado aqui pra não esquecer, mas **nada disso está no banco ainda**:
 
 - **`refugos.motivo` — hoje é texto livre**, mas a regra de negócio pede uma lista fechada: `Quebra na produção`, `Erro de medida`, `Amassado/rasgado`, `Outro`. Falta o `check constraint` (ou uma tabela de domínio) e o formulário virar um seletor em vez de texto livre.
 - **`ocorrencias_qualidade` / segregação de palete** — o schema atual não modela: (a) o **saldo disponível** do palete (quantidade original menos o que já foi debitado por reprovação), (b) o **flag "segregado"** que precisa persistir no histórico mesmo depois do saldo zerar, nem (c) a distinção entre as ações possíveis por perfil (ver seção 9.4). Isso será desenhado no Sprint 5, mas provavelmente exige uma coluna de saldo em `paletes` (ex: `quantidade_reprovada`, com `saldo_disponivel` calculado) e talvez um campo de "ação" em `ocorrencias_qualidade`.
@@ -213,28 +114,7 @@ Coisas que já sabemos que vão exigir `alter table` quando os sprints correspon
 
 ## 6. Políticas de segurança (RLS)
 
-Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer perfil autenticado **lê** tudo.
-
-```sql
-alter table paletes enable row level security;
-
-create policy "leitura geral" on paletes
-  for select using (true);
-
-create policy "onduladeira insere seus paletes" on paletes
-  for insert with check (
-    setor_origem = 'onduladeira'
-    and exists (select 1 from profiles where id = auth.uid() and perfil = 'onduladeira')
-  );
-
-create policy "conversao insere seus paletes" on paletes
-  for insert with check (
-    setor_origem = 'conversao'
-    and exists (select 1 from profiles where id = auth.uid() and perfil = 'conversao')
-  );
-```
-
-O mesmo padrão (leitura geral + escrita restrita ao perfil dono) se repete para `refugos` (Onduladeira/Conversão podem lançar) e `ocorrencias_qualidade` (qualquer setor abre; só `qualidade` atualiza o `status`). Os cadastros base (`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`) ficam restritos a `insert`/`update`/`delete` apenas para `perfil = 'admin'`, com leitura liberada geral.
+Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer perfil autenticado **lê** tudo. `paletes` tem RLS habilitado com uma policy de leitura geral e uma policy de insert por setor, cada uma conferindo que `setor_origem` bate com o `perfil` de quem está inserindo (consultando `profiles`). O mesmo padrão (leitura geral + escrita restrita ao perfil dono) se repete para `refugos` (Onduladeira/Conversão podem lançar) e `ocorrencias_qualidade` (qualquer setor abre; só `qualidade` atualiza o `status`). Os cadastros base (`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`) ficam restritos a `insert`/`update`/`delete` apenas para `perfil = 'admin'`, com leitura liberada geral. O SQL de cada policy vive versionado em `supabase/migrations/`.
 
 ---
 
@@ -246,7 +126,7 @@ O mesmo padrão (leitura geral + escrita restrita ao perfil dono) se repete para
 - **Commits no padrão Conventional Commits**: `feat:`, `fix:`, `chore:`, `docs:` — um commit por peça lógica de trabalho, não só um commit gigante por sprint
 - Ao concluir a feature: merge pra `main`, apaga a branch, segue pra próxima
 - **Sem PR/revisão intermediária** — o merge é direto, depois de testar a feature manualmente. Como rede de segurança complementar (não como gate), todo push roda CI (GitHub Actions, `.github/workflows/ci.yml`): `flutter analyze` + `flutter test`. Se quebrar, aparece no GitHub mesmo sem travar o merge.
-- **Mudança de schema (SQL) vira migration, não SQL colado no dashboard**: arquivo novo em `supabase/migrations/`, aplicado com `supabase db push` (projeto já linkado via `supabase link`). O schema real do banco é sempre o que está em `supabase/migrations/` — os blocos SQL nas seções 5, 6 e 9 deste documento são referência/histórico de por que cada coisa existe, não uma lista de "SQL pra rodar".
+- **Mudança de schema é migration, não SQL colado no dashboard**: arquivo novo em `supabase/migrations/`, aplicado com `supabase db push` (projeto já linkado via `supabase link`). `supabase db pull` mantém essa pasta sincronizada com o banco real. O schema real do banco é sempre o que está lá — este documento explica o *porquê* de cada coisa, não é uma lista de comandos pra rodar.
 
 ---
 
@@ -283,15 +163,7 @@ quantidade_calculada = floor( (altura_medida_mm ÷ espessura_mm da composição)
 
 ### 9.2 Visibilidade de OP para a Conversão
 
-Uma OP só entra na fila de trabalho da Conversão se (a) tiver **prefixo 802** (única que passa por Conversão — ver seção 1) e (b) já existir **pelo menos 1 palete** com `setor_origem = 'onduladeira'` vinculado a ela — não é necessário que a Onduladeira tenha concluído a quantidade pedida inteira:
-
-```sql
-select distinct op.*
-from ordens_producao op
-join paletes p on p.ordem_producao_id = op.id
-where p.setor_origem = 'onduladeira'
-  and op.numero_op like '802%';
-```
+Uma OP só entra na fila de trabalho da Conversão se (a) tiver **prefixo 802** (única que passa por Conversão — ver seção 1) e (b) já existir **pelo menos 1 palete** com `setor_origem = 'onduladeira'` vinculado a ela — não é necessário que a Onduladeira tenha concluído a quantidade pedida inteira. Na prática é uma consulta que junta `ordens_producao` com `paletes` filtrando por `setor_origem = 'onduladeira'` e pelo prefixo do `numero_op`.
 
 ### 9.3 Refugo
 
@@ -328,80 +200,21 @@ Cada Ficha Técnica tem especificações técnicas próprias do produto (não da
 
 O Supabase Auth exige um email por baixo dos panos, mas a pessoa nunca digita nem vê isso — o campo `login` de `profiles` é o "usuário" (curto, sem espaço, ex: `kenji`), e o app monta um email técnico automaticamente no padrão `<login>@controle-paletes.app` só pra autenticar. Ao criar um usuário novo no Supabase Auth, o email cadastrado lá deve seguir esse mesmo padrão.
 
-### 9.8 RLS obrigatório em `profiles`
+### 9.8 RLS em `profiles`
 
-Como qualquer usuário logado precisa ler seu próprio perfil, a política mínima é:
+Como qualquer usuário logado precisa ler seu próprio perfil, existe uma policy mínima liberando `select` quando `auth.uid()` bate com o `id` da linha — sem ela, o Supabase bloqueia toda leitura da tabela por padrão assim que o RLS é ativado, mesmo para o dono da própria linha.
 
-```sql
-create policy "leitura do proprio perfil" on profiles
-  for select using (auth.uid() = id);
-```
-
-Sem essa política, o Supabase bloqueia toda leitura da tabela por padrão assim que o RLS é ativado — mesmo para o dono da própria linha.
-
-**RLS de admin em `profiles` (Sprint 2 — gestão de Usuários)**: a tela de Usuários precisa que o admin liste todo mundo e edite nome/perfil/ativo de qualquer um, não só a própria linha. Usa uma função `security definer` (`is_admin()`) em vez de subconsulta direta porque uma policy em `profiles` que consulta a própria `profiles` pode entrar em recursão:
-
-```sql
-create or replace function public.is_admin()
-returns boolean
-language sql
-security definer
-set search_path = public
-stable
-as $$
-  select exists (
-    select 1 from profiles where id = auth.uid() and perfil = 'admin'
-  );
-$$;
-
-create policy "admin le todos perfis" on profiles
-  for select using (public.is_admin());
-
-create policy "admin atualiza perfis" on profiles
-  for update using (public.is_admin()) with check (public.is_admin());
-```
+**RLS de admin em `profiles` (Sprint 2 — gestão de Usuários)**: a tela de Usuários precisa que o admin liste todo mundo e edite nome/perfil/ativo de qualquer um, não só a própria linha. Isso usa uma função `security definer` (`public.is_admin()`) em vez de subconsulta direta na própria policy — uma policy em `profiles` que consulta a própria `profiles` dentro da subconsulta pode entrar em recursão; a função `security definer` resolve isso porque roda a consulta interna ignorando o RLS.
 
 **Criar usuário e trocar senha não passam pelo app direto**: essas duas ações exigem a `service_role` key do Supabase (privilégio de admin do Auth), que nunca pode ser embutida no app Flutter — quem extrair o app teria acesso total ao banco, ignorando todo o RLS. Por isso rodam numa Edge Function (`supabase/functions/admin-usuarios`), que guarda a `service_role` key como segredo do projeto e só executa depois de confirmar, via `profiles`, que quem chamou é admin. Editar nome/perfil e desativar continuam diretos pelo app, cobertos pelas policies acima.
 
 ### 9.9 Admin tem acesso a tudo, inclusive telas operacionais
 
-O perfil `admin` não fica restrito aos cadastros — ele também acessa as telas de cada setor (Onduladeira, Conversão, Qualidade) a partir da própria home de Cadastros, pra poder testar/apoiar qualquer fluxo. Isso exige que as policies de escrita de cada setor também aceitem admin, não só o dono do setor:
-
-```sql
-create policy "admin insere paletes" on paletes
-  for insert with check (public.is_admin());
-```
-
-O mesmo padrão (uma policy extra de insert com `with check (public.is_admin())`, além da policy do próprio setor) deve ser repetido em `refugos` e `ocorrencias_qualidade` quando esses sprints chegarem.
+O perfil `admin` não fica restrito aos cadastros — ele também acessa as telas de cada setor (Onduladeira, Conversão, Qualidade) a partir da própria home de Cadastros, pra poder testar/apoiar qualquer fluxo. Isso exige que as policies de escrita de cada setor também aceitem admin (via `is_admin()`), não só o dono do setor — hoje já vale pra `paletes`; o mesmo padrão deve ser repetido em `refugos` e `ocorrencias_qualidade` quando esses sprints chegarem.
 
 ### 9.10 RLS dos cadastros base
 
-`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`: leitura liberada pra qualquer autenticado, escrita restrita a admin.
-
-```sql
-alter table clientes enable row level security;
-alter table composicoes enable row level security;
-alter table fichas_tecnicas enable row level security;
-alter table ordens_producao enable row level security;
-
-create policy "leitura geral clientes" on clientes for select using (true);
-create policy "leitura geral composicoes" on composicoes for select using (true);
-create policy "leitura geral fichas_tecnicas" on fichas_tecnicas for select using (true);
-create policy "leitura geral ordens_producao" on ordens_producao for select using (true);
-
-create policy "admin escreve clientes" on clientes for insert with check (
-  exists (select 1 from profiles where id = auth.uid() and perfil = 'admin')
-);
-create policy "admin escreve composicoes" on composicoes for insert with check (
-  exists (select 1 from profiles where id = auth.uid() and perfil = 'admin')
-);
-create policy "admin escreve fichas_tecnicas" on fichas_tecnicas for insert with check (
-  exists (select 1 from profiles where id = auth.uid() and perfil = 'admin')
-);
-create policy "admin escreve ordens_producao" on ordens_producao for insert with check (
-  exists (select 1 from profiles where id = auth.uid() and perfil = 'admin')
-);
-```
+`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`: leitura liberada pra qualquer autenticado, escrita (`insert`/`update`/`delete`) restrita a quem tem `perfil = 'admin'` em `profiles`.
 
 ---
 
