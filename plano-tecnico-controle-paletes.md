@@ -85,6 +85,8 @@ Cada pasta dentro de `features/` segue o mesmo padrão interno: `view/`, `contro
 
 ## 5. Schema SQL (Supabase / Postgres)
 
+> Os blocos SQL abaixo (e nas seções 6 e 9) documentam **o que já foi aplicado** e por quê — não são instruções pra copiar e colar. A partir de agora, toda mudança de schema é um arquivo novo em `supabase/migrations/`, aplicado via `supabase db push` (ver seção 7). `supabase db pull` mantém essa pasta sincronizada com o banco real.
+
 ```sql
 -- Perfis de usuário (ligado ao auth.users nativo do Supabase)
 create table profiles (
@@ -244,6 +246,7 @@ O mesmo padrão (leitura geral + escrita restrita ao perfil dono) se repete para
 - **Commits no padrão Conventional Commits**: `feat:`, `fix:`, `chore:`, `docs:` — um commit por peça lógica de trabalho, não só um commit gigante por sprint
 - Ao concluir a feature: merge pra `main`, apaga a branch, segue pra próxima
 - **Sem PR/revisão intermediária** — o merge é direto, depois de testar a feature manualmente. Como rede de segurança complementar (não como gate), todo push roda CI (GitHub Actions, `.github/workflows/ci.yml`): `flutter analyze` + `flutter test`. Se quebrar, aparece no GitHub mesmo sem travar o merge.
+- **Mudança de schema (SQL) vira migration, não SQL colado no dashboard**: arquivo novo em `supabase/migrations/`, aplicado com `supabase db push` (projeto já linkado via `supabase link`). O schema real do banco é sempre o que está em `supabase/migrations/` — os blocos SQL nas seções 5, 6 e 9 deste documento são referência/histórico de por que cada coisa existe, não uma lista de "SQL pra rodar".
 
 ---
 
