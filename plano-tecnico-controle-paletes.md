@@ -89,7 +89,7 @@ O schema real do banco vive em `supabase/migrations/` — esse é o histórico v
 - **`profiles`**: um perfil por usuário autenticado, ligado ao `auth.users` nativo do Supabase. Guarda `login` (o "usuário" curto que a pessoa digita), `nome`, `perfil` (`onduladeira`/`conversao`/`qualidade`/`admin`) e `ativo`.
 - **`clientes`**: cadastro simples — razão social, cidade, UF, ativo.
 - **`composicoes`**: os "tipos de onda" (ex: `T140M130T140/B`), cada um com sua `espessura_mm`.
-- **`fichas_tecnicas`**: o produto em si — código, cliente, composição, medida da chapa, `qp_padrao` (número de pilhas por palete), as 8 colunas de qualidade opcionais (ver 9.6) e os 2 campos de paletização da Conversão (ver 5.3).
+- **`fichas_tecnicas`**: o produto em si — código, cliente, composição, `comprimento_mm`/`largura_mm` (medida da chapa, ver 5.1), `qp_padrao` (número de pilhas por palete), as 8 colunas de qualidade opcionais (ver 9.6), até 5 vincos opcionais (ver 5.1) e os campos de paletização/arranjo da Conversão (ver 5.3).
 - **`ordens_producao`**: a OP — número (cujo prefixo 802/803 define o roteamento, ver seção 1), ficha técnica, quantidade pedida, data do pedido e `status` (`aberta`/`concluida`).
 - **`paletes`**: cada apontamento — OP, número sequencial (único por OP), `altura_medida_mm` (Onduladeira) ou `camadas` (Conversão) — um dos dois, nunca os dois —, quantidade calculada, `tipo_chapa`, `setor_origem` (`onduladeira`/`conversao`), código de barras (único globalmente, é o valor impresso na etiqueta), responsável, data/hora, e `revisado_por` (quem debitou saldo por último — ver 9.4).
 - **`refugos`**: chapa perdida/descartada, vinculada à OP (não a um palete específico) — ver 9.3.
@@ -103,6 +103,10 @@ Observações:
 
 Colunas adicionadas depois do Sprint 1, pra cobrir as especificações técnicas do produto (ver 9.6): `gramatura`, `coluna`, `cobb_interno`, `cobb_externo`, `mullen`, `compressao`, `resina_interna`, `resina_externa`. Todas opcionais (nullable) — nem toda FT precisa preencher tudo de cara.
 
+**Medida da chapa** era um único campo de texto livre (`medida_chapa`, ex: `"733 x 1.964"`) — virou 2 colunas numéricas, `comprimento_mm` e `largura_mm`, ambas obrigatórias. A migração que fez a troca (Sprint 9) leu o texto existente pra preencher as duas colunas novas antes de derrubar a antiga, então nenhuma FT já cadastrada perdeu dado.
+
+**Vincos**: `vinco_1_mm` até `vinco_5_mm`, todas opcionais e sem ordem fixa entre si — uma caixa pode já sair vincada (linhas de dobra marcadas) direto da Onduladeira, então a FT guarda até 5 medidas de vinco conforme o desenho da caixa precisar.
+
 ### 5.2 Refugo e segregação (Sprint 5)
 
 - **`refugos.motivo`** virou lista fechada via `check constraint`: `Quebra na produção`, `Erro de medida`, `Amassado/rasgado`, `Outro`.
@@ -112,6 +116,8 @@ Colunas adicionadas depois do Sprint 1, pra cobrir as especificações técnicas
 ### 5.3 Paletização da Conversão
 
 `fichas_tecnicas` ganhou `pacotes_por_camada` e `pecas_por_pacote` — opcionais no banco, mas **obrigatórios pra apontar como Conversão** (ver 9.1). FTs antigas continuam funcionando pra Onduladeira normalmente; só precisam desses 2 campos se a OP for 802. (Chegou a existir um terceiro campo, `altura_pacote_mm`, pra medir a pilha em mm igual a Onduladeira faz — foi removido: o operador da Conversão informa direto quantas **camadas** de pacote o palete tem, sem medir altura.)
+
+`fichas_tecnicas` também ganhou `arranjo`: quantas **caixas** saem de 1 **chapa** no arranjo de impressão/vinco (ex: uma chapa da FT vira 3 caixas menores). Opcional — nulo é tratado como 1 (uma chapa = uma caixa, o comportamento original antes desse campo existir). Sem isso, "chapas disponíveis" no detalhe da OP de Conversão sempre debitava 1 chapa inteira por caixa apontada, o que deixava o saldo negativo pra qualquer FT com arranjo maior que 1 mesmo sobrando material de verdade (ver 9.1).
 
 ### 5.4 Edição dos cadastros base
 
@@ -175,7 +181,7 @@ Conversão:   camadas × pacotes_por_camada da FT × pecas_por_pacote da FT
 - `tipo_chapa` nunca é seleção manual. Pra Conversão é sempre `elaborado`. Pra Onduladeira depende do prefixo da OP: `elaborado` se a OP começa com 803 (produto final), `semi_elaborado` se começa com 802 (ainda intermediário) — ver seção 1.
 - O apontamento da Conversão só funciona se a Ficha Técnica tiver os 2 campos de paletização preenchidos (ver 5.3) — sem eles o app recusa com uma mensagem, em vez de calcular errado.
 
-Na tela de detalhe da OP (Conversão) aparece **Chapas total** e **Chapas disponíveis**: assume-se 1 caixa apontada pela Conversão = 1 chapa consumida da Onduladeira (uma chapa vira uma caixa no processo). `chapas_total` é a soma do `saldo_disponivel` de tudo que a Onduladeira já apontou nessa OP (líquido de reprovação de qualidade do lado dela); `chapas_disponiveis` é esse total menos a soma de `quantidade_calculada` de tudo que a Conversão já apontou. Fica vermelho se ficar negativo (apontou mais caixa do que tinha chapa disponível), mas isso é só aviso visual — não bloqueia o apontamento. O apontamento da Conversão continua sendo feito palete a palete, quando aquele palete estiver completo.
+Na tela de detalhe da OP (Conversão) aparece **Chapas total** e **Chapas disponíveis**. `chapas_total` é a soma do `saldo_disponivel` de tudo que a Onduladeira já apontou nessa OP (líquido de reprovação de qualidade do lado dela). `chapas_disponiveis` é esse total menos as chapas já consumidas pela Conversão — e consumo **não** é sempre 1 caixa = 1 chapa: depende do `arranjo` da FT (ver 5.3), quantas caixas saem de 1 chapa no arranjo de impressão. As caixas já apontadas (soma de `quantidade_calculada` de tudo que a Conversão apontou nessa OP) são convertidas de volta em chapas dividindo pelo `arranjo` (arredondando pra cima, `ceil`, pra nunca superestimar o que sobrou). FT sem `arranjo` cadastrado usa 1 (uma chapa = uma caixa, igual ao comportamento antes desse campo existir). Fica vermelho se ficar negativo (apontou mais caixa do que tinha chapa disponível), mas isso é só aviso visual — não bloqueia o apontamento. O apontamento da Conversão continua sendo feito palete a palete, quando aquele palete estiver completo.
 
 ### 9.2 Visibilidade de OP para a Conversão
 
@@ -273,3 +279,16 @@ Estende a mesma fila de pendentes da Fase 1, mas de forma genérica: uma única 
 - Chapa elaborada com fluxo de Quebra mais refinado.
 - OCR de etiqueta.
 - **Modo offline — ações que dependem de saldo atual do palete** (segregar inteiro, resolver ocorrência, corrigir apontamento, excluir totalmente): continuam exigindo conexão de propósito — ver 9.13.
+
+---
+
+## 11. Identidade visual e padrões de tela
+
+Passe de design feito antes do Sprint 9 (piloto), só na camada visual — nenhuma regra de negócio, fórmula, RLS, migration ou lógica de sincronização mudou junto.
+
+- **Cor de marca**: `#0EA9F6` (azul institucional da empresa), semente do `ColorScheme` do app (`lib/core/theme/app_theme.dart`), com tema claro e escuro. Independente da paleta usada nos gráficos do Dashboard (`#2A78D6`/`#EB6834`), escolhida à parte por contraste pra daltonismo — ver seção do Dashboard no Sprint 7.
+- **Responsivo por padrão**: o app roda tanto em desktop (Windows, usado hoje pra admin/cadastros e testes) quanto em celular/tablet no chão de fábrica (onde o operador vai usar o leitor de código de barras via `mobile_scanner`, Sprint 6). Formulários e listas ficam com largura máxima confortável em telas largas e ocupam a tela toda em telas estreitas, via `LarguraFormulario` (`lib/shared/widgets/apontamento_kit.dart`).
+- **Kit de apontamento** (`lib/shared/widgets/apontamento_kit.dart`): peças reutilizadas em toda tela de OP/apontamento — `RotuloSecao` (rótulo discreto acima de cada campo), `CartaoInfo` (cartão neutro com linhas rótulo+valor, pra dados de referência como Cliente/Composição/Medida/QP padrão ou uma linha avulsa como "Próximo palete desta OP"), `CartaoProgresso` (métrica + barra + percentual, usado tanto pro "produzido nesta OP" da Onduladeira quanto pro "chapas disponíveis" da Conversão), `CartaoResultado` (destaque da quantidade calculada antes de confirmar), `BotaoAcaoPrincipal` (botão de alto contraste, sempre a última ação da tela) e `CartaoLista` (linha de lista em cartão arredondado, substituindo `ListTile` cru em praticamente toda lista do app — cadastros, OPs, fila da Qualidade, pendências de sincronização).
+- **Apontamento embutido na tela de detalhe da OP, sem tela nem diálogo à parte**: `OrdemDetalheView` (Onduladeira) e `OrdemDetalheConversaoView` (Conversão) trazem o contexto da FT, o cartão de progresso, o campo de medida (altura ou camadas), "Próximo palete desta OP", a quantidade calculada e o botão de confirmar todos juntos, no topo da própria tela — a lista dos paletes já apontados fica logo abaixo, na mesma tela rolável. Existiu uma versão intermediária com uma tela cheia separada (`ApontamentoOnduladeiraView`/`ApontamentoConversaoView`, alcançada por um FAB) que foi abandonada por pedido do usuário antes de qualquer commit — as duas telas não existem no histórico do repositório. Depois de confirmar um apontamento a tela não navega pra lugar nenhum: só limpa o campo de medida, pra apontar o próximo palete em sequência sem sair da tela. Ficha Técnica e OP aparecem só como contexto (campo desabilitado), já que a escolha aconteceu na tela anterior (lista de OPs). Nenhuma chamada de repositório ou regra de cálculo mudou nessa passagem — só onde os campos moram na árvore de widgets.
+- **Etiqueta continua adiada**: o botão de confirmar apontamento não promete impressão de etiqueta (fica só "Confirmar apontamento") — isso é do Sprint 6, ainda sem data.
+- **`OrdemProducaoInfo` ganhou `composicaoCodigo` e `medidaChapa`**: precisos pro cartão de contexto (Cliente/Composição/Medida/QP padrão) mostrado antes do apontamento. Puxados do mesmo join que já existia (`composicoes.codigo`, `fichas_tecnicas.medida_chapa`), sem query nova. O cache offline (`LocalOrdens`, `schemaVersion` 3) ganhou as mesmas duas colunas, nullable pra não quebrar linhas já salvas antes da migration — na prática somem assim que o cache é atualizado de novo online, já que ele é substituído por inteiro (ver 9.12).

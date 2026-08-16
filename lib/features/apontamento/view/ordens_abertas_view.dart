@@ -3,15 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/paletes_repository.dart';
 import '../../../domain/entities/palete.dart';
+import '../../../shared/widgets/apontamento_kit.dart';
 import '../../auth/controller/auth_controller.dart';
 import 'ordem_detalhe_view.dart';
 
 /// Tela operacional da Onduladeira: só OPs ainda não finalizadas, pra não
 /// misturar com o histórico. A busca com todas as OPs (abertas e
 /// concluídas) fica centralizada em Cadastros > Ordens de Produção.
-final _ordensAbertasProvider = FutureProvider.autoDispose<List<OrdemProducaoInfo>>((ref) {
-  return ref.watch(paletesRepositoryProvider).listarOrdensAbertas();
-});
+final _ordensAbertasProvider =
+    FutureProvider.autoDispose<List<OrdemProducaoInfo>>((ref) {
+      return ref.watch(paletesRepositoryProvider).listarOrdensAbertas();
+    });
 
 class OrdensAbertasView extends ConsumerWidget {
   const OrdensAbertasView({super.key});
@@ -39,20 +41,34 @@ class OrdensAbertasView extends ConsumerWidget {
           if (ordens.isEmpty) {
             return const Center(child: Text('Nenhuma OP em aberto.'));
           }
-          return ListView.separated(
-            itemCount: ordens.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final op = ordens[i];
-              return ListTile(
-                title: Text(op.numeroOp),
-                subtitle: Text('${op.clienteNome} · FT ${op.codigoFt}'),
-                trailing: Text('${op.quantidadePedida}'),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => OrdemDetalheView(ordem: op)),
-                ),
-              );
-            },
+          return LarguraFormulario(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: ordens.length,
+              itemBuilder: (context, i) {
+                final op = ordens[i];
+                final progresso =
+                    (op.progressoAtual == null || op.progressoAlvo == null)
+                    ? null
+                    : op.progressoAlvo == 0
+                    ? 0.0
+                    : op.progressoAtual! / op.progressoAlvo!;
+                return CartaoLista(
+                  title: Text(op.numeroOp),
+                  subtitle: Text(
+                    '${op.clienteNome} · FT ${op.codigoFt}'
+                    '${op.progressoAtual != null ? ' · ${op.progressoAtual}/${op.quantidadePedida}' : ''}',
+                  ),
+                  trailing: Text('${op.quantidadePedida}'),
+                  progresso: progresso,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => OrdemDetalheView(ordem: op),
+                    ),
+                  ),
+                );
+              },
+            ),
           );
         },
       ),

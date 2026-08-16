@@ -5,6 +5,7 @@ import '../../../data/repositories/cadastros_repository.dart';
 import '../../../domain/entities/cliente.dart';
 import '../../../domain/entities/composicao.dart';
 import '../../../domain/entities/ficha_tecnica.dart';
+import '../../../shared/widgets/apontamento_kit.dart';
 
 final _fichasProvider = FutureProvider.autoDispose<List<FichaTecnica>>((ref) {
   return ref.watch(cadastrosRepositoryProvider).listarFichasTecnicas();
@@ -27,9 +28,10 @@ class FichasTecnicasView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fichasAsync = ref.watch(_fichasProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Fichas Técnicas')),
+      appBar: AppBar(title: const Text('Fichas técnicas')),
       body: fichasAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
@@ -39,18 +41,32 @@ class FichasTecnicasView extends ConsumerWidget {
               child: Text('Nenhuma ficha técnica cadastrada ainda.'),
             );
           }
-          return ListView.separated(
-            itemCount: fichas.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final f = fichas[i];
-              return ListTile(
-                title: Text(f.codigoFt),
-                subtitle: Text('${f.medidaChapa} · QP padrão: ${f.qpPadrao}'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _abrirFormulario(context, ref, existente: f),
-              );
-            },
+          return LarguraFormulario(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: fichas.length,
+              itemBuilder: (context, i) {
+                final f = fichas[i];
+                return CartaoLista(
+                  leading: CircleAvatar(
+                    backgroundColor: colorScheme.primaryContainer.withValues(
+                      alpha: 0.6,
+                    ),
+                    child: Icon(
+                      Icons.description,
+                      color: colorScheme.primary,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(f.codigoFt),
+                  subtitle: Text(
+                    '${f.medidaExibicao} · QP padrão: ${f.qpPadrao}',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _abrirFormulario(context, ref, existente: f),
+                );
+              },
+            ),
           );
         },
       ),
@@ -86,8 +102,11 @@ class FichasTecnicasView extends ConsumerWidget {
     final codigoController = TextEditingController(
       text: existente?.codigoFt ?? '',
     );
-    final medidaController = TextEditingController(
-      text: existente?.medidaChapa ?? '',
+    final comprimentoController = TextEditingController(
+      text: existente?.comprimentoMm.toString() ?? '',
+    );
+    final larguraController = TextEditingController(
+      text: existente?.larguraMm.toString() ?? '',
     );
     final qpController = TextEditingController(
       text: existente?.qpPadrao.toString() ?? '',
@@ -119,11 +138,29 @@ class FichasTecnicasView extends ConsumerWidget {
     final resinaExternaController = TextEditingController(
       text: existente?.resinaExterna ?? '',
     );
+    final vinco1Controller = TextEditingController(
+      text: existente?.vinco1Mm?.toString() ?? '',
+    );
+    final vinco2Controller = TextEditingController(
+      text: existente?.vinco2Mm?.toString() ?? '',
+    );
+    final vinco3Controller = TextEditingController(
+      text: existente?.vinco3Mm?.toString() ?? '',
+    );
+    final vinco4Controller = TextEditingController(
+      text: existente?.vinco4Mm?.toString() ?? '',
+    );
+    final vinco5Controller = TextEditingController(
+      text: existente?.vinco5Mm?.toString() ?? '',
+    );
     final pacotesPorCamadaController = TextEditingController(
       text: existente?.pacotesPorCamada?.toString() ?? '',
     );
     final pecasPorPacoteController = TextEditingController(
       text: existente?.pecasPorPacote?.toString() ?? '',
+    );
+    final arranjoController = TextEditingController(
+      text: existente?.arranjo?.toString() ?? '',
     );
     String? clienteIdSelecionado = existente?.clienteId ?? clientes.first.id;
     String? composicaoIdSelecionada =
@@ -134,166 +171,228 @@ class FichasTecnicasView extends ConsumerWidget {
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
           title: Text(
-            existente == null ? 'Nova Ficha Técnica' : 'Editar Ficha Técnica',
+            existente == null ? 'Nova ficha técnica' : 'Editar ficha técnica',
           ),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: codigoController,
-                    decoration: const InputDecoration(labelText: 'Código FT'),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-                  ),
-                  DropdownButtonFormField<String>(
-                    initialValue: clienteIdSelecionado,
-                    decoration: const InputDecoration(labelText: 'Cliente'),
-                    items: clientes
-                        .map(
-                          (c) => DropdownMenuItem(
-                            value: c.id,
-                            child: Text(c.razaoSocial),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => clienteIdSelecionado = v),
-                  ),
-                  DropdownButtonFormField<String>(
-                    initialValue: composicaoIdSelecionada,
-                    decoration: const InputDecoration(labelText: 'Composição'),
-                    items: composicoes
-                        .map(
-                          (c) => DropdownMenuItem(
-                            value: c.id,
-                            child: Text(c.codigo),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) =>
-                        setState(() => composicaoIdSelecionada = v),
-                  ),
-                  TextFormField(
-                    controller: medidaController,
-                    decoration: const InputDecoration(
-                      labelText: 'Medida da chapa (ex: 733 x 1.964)',
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _Campo(
+                      rotulo: 'Código FT',
+                      controller: codigoController,
+                      hint: 'Ex: 055234',
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Obrigatório'
+                          : null,
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-                  ),
-                  TextFormField(
-                    controller: qpController,
-                    decoration: const InputDecoration(
-                      labelText: 'QP padrão (nº de pilhas)',
+                    const SizedBox(height: 12),
+                    _RotuloDropdown(
+                      rotulo: 'Cliente',
+                      valor: clienteIdSelecionado,
+                      itens: clientes
+                          .map(
+                            (c) => DropdownMenuItem(
+                              value: c.id,
+                              child: Text(c.razaoSocial),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) =>
+                          setState(() => clienteIdSelecionado = v),
                     ),
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
-                      final n = int.tryParse(v ?? '');
-                      if (n == null || n <= 0) {
-                        return 'Informe um número maior que zero';
-                      }
-                      return null;
-                    },
-                  ),
-                  TextFormField(
-                    controller: referenciaController,
-                    decoration: const InputDecoration(
-                      labelText: 'Referência (opcional)',
+                    const SizedBox(height: 12),
+                    _RotuloDropdown(
+                      rotulo: 'Composição',
+                      valor: composicaoIdSelecionada,
+                      itens: composicoes
+                          .map(
+                            (c) => DropdownMenuItem(
+                              value: c.id,
+                              child: Text(c.codigo),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) =>
+                          setState(() => composicaoIdSelecionada = v),
                     ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Divider(),
-                  ),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Qualidade (opcional)'),
-                  ),
-                  TextFormField(
-                    controller: gramaturaController,
-                    decoration: const InputDecoration(labelText: 'Gramatura'),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                    const SizedBox(height: 12),
+                    _linha(
+                      _Campo(
+                        rotulo: 'Comprimento (mm)',
+                        controller: comprimentoController,
+                        hint: 'Ex: 733',
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        validator: _validarNumeroPositivo,
+                      ),
+                      _Campo(
+                        rotulo: 'Largura (mm)',
+                        controller: larguraController,
+                        hint: 'Ex: 1.964',
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        validator: _validarNumeroPositivo,
+                      ),
                     ),
-                  ),
-                  TextFormField(
-                    controller: colunaController,
-                    decoration: const InputDecoration(labelText: 'Coluna'),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                    const SizedBox(height: 20),
+                    const RotuloSecaoMaiuscula('Vincos (opcional)'),
+                    _linha(
+                      _Campo(
+                        rotulo: 'Vinco 1',
+                        controller: vinco1Controller,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                      _Campo(
+                        rotulo: 'Vinco 2',
+                        controller: vinco2Controller,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
                     ),
-                  ),
-                  TextFormField(
-                    controller: cobbInternoController,
-                    decoration: const InputDecoration(
-                      labelText: 'Cobb Interno',
+                    const SizedBox(height: 12),
+                    _linha(
+                      _Campo(
+                        rotulo: 'Vinco 3',
+                        controller: vinco3Controller,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                      _Campo(
+                        rotulo: 'Vinco 4',
+                        controller: vinco4Controller,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                    const SizedBox(height: 12),
+                    _Campo(
+                      rotulo: 'Vinco 5',
+                      controller: vinco5Controller,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     ),
-                  ),
-                  TextFormField(
-                    controller: cobbExternoController,
-                    decoration: const InputDecoration(
-                      labelText: 'Cobb Externo',
+                    const SizedBox(height: 12),
+                    _linha(
+                      _Campo(
+                        rotulo: 'QP padrão',
+                        controller: qpController,
+                        hint: 'Nº de pilhas',
+                        keyboardType: TextInputType.number,
+                        validator: (v) {
+                          final n = int.tryParse(v ?? '');
+                          if (n == null || n <= 0) {
+                            return 'Maior que zero';
+                          }
+                          return null;
+                        },
+                      ),
+                      _Campo(
+                        rotulo: 'Referência',
+                        controller: referenciaController,
+                        hint: 'Opcional',
+                      ),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                    const SizedBox(height: 20),
+                    const RotuloSecaoMaiuscula('Qualidade (opcional)'),
+                    _linha(
+                      _Campo(
+                        rotulo: 'Gramatura',
+                        controller: gramaturaController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                      _Campo(
+                        rotulo: 'Coluna',
+                        controller: colunaController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
                     ),
-                  ),
-                  TextFormField(
-                    controller: mullenController,
-                    decoration: const InputDecoration(labelText: 'Mullen'),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                    const SizedBox(height: 12),
+                    _linha(
+                      _Campo(
+                        rotulo: 'Cobb interno',
+                        controller: cobbInternoController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                      _Campo(
+                        rotulo: 'Cobb externo',
+                        controller: cobbExternoController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
                     ),
-                  ),
-                  TextFormField(
-                    controller: compressaoController,
-                    decoration: const InputDecoration(labelText: 'Compressão'),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                    const SizedBox(height: 12),
+                    _linha(
+                      _Campo(
+                        rotulo: 'Mullen',
+                        controller: mullenController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                      _Campo(
+                        rotulo: 'Compressão',
+                        controller: compressaoController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
                     ),
-                  ),
-                  TextFormField(
-                    controller: resinaInternaController,
-                    decoration: const InputDecoration(
-                      labelText: 'Resina Interna',
+                    const SizedBox(height: 12),
+                    _linha(
+                      _Campo(
+                        rotulo: 'Resina interna',
+                        controller: resinaInternaController,
+                      ),
+                      _Campo(
+                        rotulo: 'Resina externa',
+                        controller: resinaExternaController,
+                      ),
                     ),
-                  ),
-                  TextFormField(
-                    controller: resinaExternaController,
-                    decoration: const InputDecoration(
-                      labelText: 'Resina Externa',
+                    const SizedBox(height: 20),
+                    const RotuloSecaoMaiuscula(
+                      'Paletização da Conversão (só p/ OP 802)',
                     ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Divider(),
-                  ),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Paletização da Conversão (opcional, só p/ OP 802)',
+                    _linha(
+                      _Campo(
+                        rotulo: 'Pacotes por camada',
+                        controller: pacotesPorCamadaController,
+                        keyboardType: TextInputType.number,
+                      ),
+                      _Campo(
+                        rotulo: 'Peças por pacote',
+                        controller: pecasPorPacoteController,
+                        keyboardType: TextInputType.number,
+                      ),
                     ),
-                  ),
-                  TextFormField(
-                    controller: pacotesPorCamadaController,
-                    decoration: const InputDecoration(
-                      labelText: 'Pacotes por camada',
+                    const SizedBox(height: 12),
+                    _Campo(
+                      rotulo: 'Arranjo (caixas por chapa)',
+                      controller: arranjoController,
+                      hint: 'Vazio = 1 caixa por chapa',
+                      keyboardType: TextInputType.number,
                     ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  TextFormField(
-                    controller: pecasPorPacoteController,
-                    decoration: const InputDecoration(
-                      labelText: 'Peças (caixas) por pacote',
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -310,7 +409,12 @@ class FichasTecnicasView extends ConsumerWidget {
                   codigoFt: codigoController.text.trim(),
                   clienteId: clienteIdSelecionado!,
                   composicaoId: composicaoIdSelecionada!,
-                  medidaChapa: medidaController.text.trim(),
+                  comprimentoMm: double.parse(
+                    comprimentoController.text.replaceAll(',', '.'),
+                  ),
+                  larguraMm: double.parse(
+                    larguraController.text.replaceAll(',', '.'),
+                  ),
                   qpPadrao: int.parse(qpController.text),
                   referencia: referenciaController.text.trim().isEmpty
                       ? null
@@ -340,10 +444,26 @@ class FichasTecnicasView extends ConsumerWidget {
                   resinaExterna: resinaExternaController.text.trim().isEmpty
                       ? null
                       : resinaExternaController.text.trim(),
+                  vinco1Mm: double.tryParse(
+                    vinco1Controller.text.replaceAll(',', '.'),
+                  ),
+                  vinco2Mm: double.tryParse(
+                    vinco2Controller.text.replaceAll(',', '.'),
+                  ),
+                  vinco3Mm: double.tryParse(
+                    vinco3Controller.text.replaceAll(',', '.'),
+                  ),
+                  vinco4Mm: double.tryParse(
+                    vinco4Controller.text.replaceAll(',', '.'),
+                  ),
+                  vinco5Mm: double.tryParse(
+                    vinco5Controller.text.replaceAll(',', '.'),
+                  ),
                   pacotesPorCamada: int.tryParse(
                     pacotesPorCamadaController.text,
                   ),
                   pecasPorPacote: int.tryParse(pecasPorPacoteController.text),
+                  arranjo: int.tryParse(arranjoController.text),
                 );
                 final repo = ref.read(cadastrosRepositoryProvider);
                 if (existente == null) {
@@ -359,6 +479,82 @@ class FichasTecnicasView extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+Widget _linha(Widget a, Widget b) => Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Expanded(child: a),
+    const SizedBox(width: 12),
+    Expanded(child: b),
+  ],
+);
+
+String? _validarNumeroPositivo(String? v) {
+  final valor = double.tryParse((v ?? '').replaceAll(',', '.'));
+  if (valor == null || valor <= 0) return 'Obrigatório';
+  return null;
+}
+
+class _Campo extends StatelessWidget {
+  final String rotulo;
+  final TextEditingController controller;
+  final String? hint;
+  final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
+
+  const _Campo({
+    required this.rotulo,
+    required this.controller,
+    this.hint,
+    this.keyboardType,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RotuloSecao(rotulo),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(hintText: hint),
+          validator: validator,
+        ),
+      ],
+    );
+  }
+}
+
+class _RotuloDropdown extends StatelessWidget {
+  final String rotulo;
+  final String? valor;
+  final List<DropdownMenuItem<String>> itens;
+  final ValueChanged<String?> onChanged;
+
+  const _RotuloDropdown({
+    required this.rotulo,
+    required this.valor,
+    required this.itens,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RotuloSecao(rotulo),
+        DropdownButtonFormField<String>(
+          initialValue: valor,
+          items: itens,
+          onChanged: onChanged,
+        ),
+      ],
     );
   }
 }

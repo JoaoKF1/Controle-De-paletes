@@ -5,11 +5,13 @@ import 'package:intl/intl.dart';
 import '../../../data/repositories/paletes_repository.dart';
 import '../../../data/repositories/qualidade_repository.dart';
 import '../../../domain/entities/ocorrencia_qualidade.dart';
+import '../../../shared/widgets/apontamento_kit.dart';
 import '../../auth/controller/auth_controller.dart';
 
-final _emAnaliseProvider = FutureProvider.autoDispose<List<OcorrenciaQualidade>>((ref) {
-  return ref.watch(qualidadeRepositoryProvider).listarEmAnalise();
-});
+final _emAnaliseProvider =
+    FutureProvider.autoDispose<List<OcorrenciaQualidade>>((ref) {
+      return ref.watch(qualidadeRepositoryProvider).listarEmAnalise();
+    });
 
 class FilaAnaliseView extends ConsumerWidget {
   const FilaAnaliseView({super.key});
@@ -37,18 +39,24 @@ class FilaAnaliseView extends ConsumerWidget {
           if (fila.isEmpty) {
             return const Center(child: Text('Nenhuma ocorrência em análise.'));
           }
-          return ListView.separated(
-            itemCount: fila.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final o = fila[i];
-              return ListTile(
-                title: Text('OP ${o.numeroOp} · Palete ${o.paleteNumeroSequencial}'),
-                subtitle: Text('${o.motivo} · ${o.quantidadeAfetada} un.'),
-                trailing: Text(DateFormat('dd/MM HH:mm').format(o.dataAbertura)),
-                onTap: () => _abrirResolucao(context, ref, o),
-              );
-            },
+          return LarguraFormulario(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: fila.length,
+              itemBuilder: (context, i) {
+                final o = fila[i];
+                return CartaoLista(
+                  title: Text(
+                    'OP ${o.numeroOp} · Palete ${o.paleteNumeroSequencial}',
+                  ),
+                  subtitle: Text('${o.motivo} · ${o.quantidadeAfetada} un.'),
+                  trailing: Text(
+                    DateFormat('dd/MM HH:mm').format(o.dataAbertura),
+                  ),
+                  onTap: () => _abrirResolucao(context, ref, o),
+                );
+              },
+            ),
           );
         },
       ),
@@ -68,26 +76,34 @@ class FilaAnaliseView extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: Text('OP ${ocorrencia.numeroOp} · Palete ${ocorrencia.paleteNumeroSequencial}'),
+          title: Text(
+            'OP ${ocorrencia.numeroOp} · Palete ${ocorrencia.paleteNumeroSequencial}',
+          ),
           content: Form(
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('${ocorrencia.motivo}\n\nQuantidade afetada: ${ocorrencia.quantidadeAfetada}'),
+                Text(
+                  '${ocorrencia.motivo}\n\nQuantidade afetada: ${ocorrencia.quantidadeAfetada}',
+                ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: quantidadeController,
                   decoration: InputDecoration(
-                    labelText: 'Quantidade reprovada (máx. ${ocorrencia.quantidadeAfetada})',
-                    helperText: '0 libera tudo · igual ao afetado reprova tudo · '
+                    labelText:
+                        'Quantidade reprovada (máx. ${ocorrencia.quantidadeAfetada})',
+                    helperText:
+                        '0 libera tudo · igual ao afetado reprova tudo · '
                         'valor no meio libera o resto',
                   ),
                   keyboardType: TextInputType.number,
                   validator: (v) {
                     final n = int.tryParse(v ?? '');
                     if (n == null || n < 0) return 'Informe um número válido';
-                    if (n > ocorrencia.quantidadeAfetada) return 'Maior que a quantidade afetada';
+                    if (n > ocorrencia.quantidadeAfetada) {
+                      return 'Maior que a quantidade afetada';
+                    }
                     return null;
                   },
                 ),
@@ -95,12 +111,15 @@ class FilaAnaliseView extends ConsumerWidget {
                 Row(
                   children: [
                     TextButton(
-                      onPressed: () => setState(() => quantidadeController.text = '0'),
+                      onPressed: () =>
+                          setState(() => quantidadeController.text = '0'),
                       child: const Text('Liberar tudo'),
                     ),
                     TextButton(
                       onPressed: () => setState(
-                        () => quantidadeController.text = ocorrencia.quantidadeAfetada.toString(),
+                        () => quantidadeController.text = ocorrencia
+                            .quantidadeAfetada
+                            .toString(),
                       ),
                       child: const Text('Reprovar tudo'),
                     ),
@@ -124,7 +143,9 @@ class FilaAnaliseView extends ConsumerWidget {
                         context,
                         ref,
                         ocorrencia,
-                        quantidadeReprovada: int.parse(quantidadeController.text),
+                        quantidadeReprovada: int.parse(
+                          quantidadeController.text,
+                        ),
                       );
                       if (sucesso && dialogContext.mounted) {
                         Navigator.of(dialogContext).pop();
@@ -151,7 +172,9 @@ class FilaAnaliseView extends ConsumerWidget {
       final palete = await ref
           .read(paletesRepositoryProvider)
           .buscarPaletePorId(ocorrencia.paleteId);
-      await ref.read(qualidadeRepositoryProvider).resolverOcorrencia(
+      await ref
+          .read(qualidadeRepositoryProvider)
+          .resolverOcorrencia(
             ocorrencia: ocorrencia,
             quantidadeReprovada: quantidadeReprovada,
             usuarioId: usuarioId,
@@ -162,7 +185,9 @@ class FilaAnaliseView extends ConsumerWidget {
       return true;
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro: $e')));
       }
       return false;
     }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../domain/entities/ficha_tecnica.dart';
 import '../../../domain/entities/ordem_producao.dart';
+import '../../../shared/widgets/apontamento_kit.dart';
 import '../../apontamento/view/busca_op_view.dart';
 
 final _opsProvider = FutureProvider.autoDispose<List<OrdemProducao>>((ref) {
@@ -43,21 +44,23 @@ class OrdensProducaoView extends ConsumerWidget {
           if (ops.isEmpty) {
             return const Center(child: Text('Nenhuma OP cadastrada ainda.'));
           }
-          return ListView.separated(
-            itemCount: ops.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final op = ops[i];
-              return ListTile(
-                title: Text(op.numeroOp),
-                subtitle: Text(
-                  '${op.quantidadePedida} chapas · ${op.status} · '
-                  '${op.dataPedido.day.toString().padLeft(2, '0')}/'
-                  '${op.dataPedido.month.toString().padLeft(2, '0')}/'
-                  '${op.dataPedido.year}',
-                ),
-              );
-            },
+          return LarguraFormulario(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: ops.length,
+              itemBuilder: (context, i) {
+                final op = ops[i];
+                return CartaoLista(
+                  title: Text(op.numeroOp),
+                  subtitle: Text(
+                    '${op.quantidadePedida} chapas · ${op.status} · '
+                    '${op.dataPedido.day.toString().padLeft(2, '0')}/'
+                    '${op.dataPedido.month.toString().padLeft(2, '0')}/'
+                    '${op.dataPedido.year}',
+                  ),
+                );
+              },
+            ),
           );
         },
       ),

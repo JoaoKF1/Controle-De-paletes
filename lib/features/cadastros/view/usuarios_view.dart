@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/usuarios_repository.dart';
 import '../../../domain/entities/usuario.dart';
+import '../../../shared/widgets/apontamento_kit.dart';
 
 const _perfis = ['admin', 'onduladeira', 'conversao', 'qualidade'];
 
@@ -28,25 +29,29 @@ class UsuariosView extends ConsumerWidget {
               child: Text('Nenhum usuário cadastrado ainda.'),
             );
           }
-          return ListView.separated(
-            itemCount: usuarios.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final u = usuarios[i];
-              return ListTile(
-                title: Text(
-                  u.nome,
-                  style: u.ativo
-                      ? null
-                      : const TextStyle(decoration: TextDecoration.lineThrough),
-                ),
-                subtitle: Text(
-                  '${u.login} · ${u.perfil}${u.ativo ? '' : ' · inativo'}',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _abrirAcoes(context, ref, u),
-              );
-            },
+          return LarguraFormulario(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: usuarios.length,
+              itemBuilder: (context, i) {
+                final u = usuarios[i];
+                return CartaoLista(
+                  title: Text(
+                    u.nome,
+                    style: u.ativo
+                        ? null
+                        : const TextStyle(
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                  ),
+                  subtitle: Text(
+                    '${u.login} · ${u.perfil}${u.ativo ? '' : ' · inativo'}',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _abrirAcoes(context, ref, u),
+                );
+              },
+            ),
           );
         },
       ),

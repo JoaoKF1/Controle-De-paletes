@@ -6,7 +6,6 @@ import '../../domain/entities/palete.dart';
 import '../../domain/entities/refugo.dart';
 import '../../features/auth/controller/auth_controller.dart';
 
-
 /// Ações disponíveis ao tocar num palete já apontado — hoje via toque na
 /// lista (a leitura de código de barras de verdade só existe a partir do
 /// Sprint 6, quando a etiqueta tiver um código real pra ler). Quais ações
@@ -40,8 +39,10 @@ Future<void> abrirAcoesPalete(
   }
 
   final usuario = ref.read(authControllerProvider).usuario!;
-  final ehDoSetor = usuario.perfil == palete.setorOrigem || usuario.perfil == 'admin';
-  final ehQualidade = usuario.perfil == 'qualidade' || usuario.perfil == 'admin';
+  final ehDoSetor =
+      usuario.perfil == palete.setorOrigem || usuario.perfil == 'admin';
+  final ehQualidade =
+      usuario.perfil == 'qualidade' || usuario.perfil == 'admin';
 
   await showModalBottomSheet<void>(
     context: context,
@@ -54,7 +55,12 @@ Future<void> abrirAcoesPalete(
             title: const Text('Pedir revisão'),
             onTap: () {
               Navigator.of(sheetContext).pop();
-              _abrirDialogoPedirRevisao(context, ref, palete: palete, usuarioId: usuario.id);
+              _abrirDialogoPedirRevisao(
+                context,
+                ref,
+                palete: palete,
+                usuarioId: usuario.id,
+              );
             },
           ),
           if (ehQualidade && palete.saldoDisponivel > 0)
@@ -78,7 +84,12 @@ Future<void> abrirAcoesPalete(
               title: const Text('Corrigir quantidade'),
               onTap: () {
                 Navigator.of(sheetContext).pop();
-                _abrirDialogoCorrigir(context, ref, palete: palete, ordem: ordem);
+                _abrirDialogoCorrigir(
+                  context,
+                  ref,
+                  palete: palete,
+                  ordem: ordem,
+                );
               },
             ),
           if (ehDoSetor && palete.saldoDisponivel > 0)
@@ -109,7 +120,9 @@ Future<void> _abrirDialogoPedirRevisao(
   required String usuarioId,
 }) async {
   final formKey = GlobalKey<FormState>();
-  final quantidadeController = TextEditingController(text: palete.saldoDisponivel.toString());
+  final quantidadeController = TextEditingController(
+    text: palete.saldoDisponivel.toString(),
+  );
   final motivoController = TextEditingController();
 
   await showDialog<void>(
@@ -124,20 +137,26 @@ Future<void> _abrirDialogoPedirRevisao(
             TextFormField(
               controller: quantidadeController,
               decoration: InputDecoration(
-                labelText: 'Quantidade afetada (máx. ${palete.saldoDisponivel})',
+                labelText:
+                    'Quantidade afetada (máx. ${palete.saldoDisponivel})',
               ),
               keyboardType: TextInputType.number,
               validator: (v) {
                 final n = int.tryParse(v ?? '');
-                if (n == null || n <= 0) return 'Informe um número maior que zero';
-                if (n > palete.saldoDisponivel) return 'Maior que o saldo disponível';
+                if (n == null || n <= 0) {
+                  return 'Informe um número maior que zero';
+                }
+                if (n > palete.saldoDisponivel) {
+                  return 'Maior que o saldo disponível';
+                }
                 return null;
               },
             ),
             TextFormField(
               controller: motivoController,
               decoration: const InputDecoration(labelText: 'Motivo'),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
             ),
           ],
         ),
@@ -150,7 +169,9 @@ Future<void> _abrirDialogoPedirRevisao(
         FilledButton(
           onPressed: () async {
             if (!formKey.currentState!.validate()) return;
-            await ref.read(qualidadeRepositoryProvider).abrirOcorrencia(
+            await ref
+                .read(qualidadeRepositoryProvider)
+                .abrirOcorrencia(
                   paleteId: palete.id,
                   quantidadeAfetada: int.parse(quantidadeController.text),
                   motivo: motivoController.text.trim(),
@@ -193,7 +214,9 @@ Future<void> _confirmarSegregarInteiro(
     ),
   );
   if (confirmou == true) {
-    await ref.read(qualidadeRepositoryProvider).segregarInteiro(
+    await ref
+        .read(qualidadeRepositoryProvider)
+        .segregarInteiro(
           palete: palete,
           ordemProducaoId: ordemProducaoId,
           usuarioId: usuarioId,
@@ -222,12 +245,15 @@ Future<void> _abrirDialogoCorrigir(
         int? novaQuantidade;
         if (ehConversao) {
           final camadas = int.tryParse(controller.text);
-          novaQuantidade =
-              camadas == null ? null : camadas * ordem.pacotesPorCamada! * ordem.pecasPorPacote!;
+          novaQuantidade = camadas == null
+              ? null
+              : camadas * ordem.pacotesPorCamada! * ordem.pecasPorPacote!;
         } else {
           final altura = double.tryParse(controller.text.replaceAll(',', '.'));
-          novaQuantidade =
-              altura == null ? null : ((altura / ordem.composicaoEspessuraMm) * ordem.qpPadrao).floor();
+          novaQuantidade = altura == null
+              ? null
+              : ((altura / ordem.composicaoEspessuraMm) * ordem.qpPadrao)
+                    .floor();
         }
 
         return AlertDialog(
@@ -240,7 +266,9 @@ Future<void> _abrirDialogoCorrigir(
                 TextFormField(
                   controller: controller,
                   decoration: InputDecoration(
-                    labelText: ehConversao ? 'Camadas de altura' : 'Altura medida (mm)',
+                    labelText: ehConversao
+                        ? 'Camadas de altura'
+                        : 'Altura medida (mm)',
                   ),
                   keyboardType: ehConversao
                       ? TextInputType.number
@@ -249,10 +277,16 @@ Future<void> _abrirDialogoCorrigir(
                   validator: (v) {
                     if (ehConversao) {
                       final n = int.tryParse(v ?? '');
-                      if (n == null || n <= 0) return 'Informe um número maior que zero';
+                      if (n == null || n <= 0) {
+                        return 'Informe um número maior que zero';
+                      }
                     } else {
-                      final valor = double.tryParse((v ?? '').replaceAll(',', '.'));
-                      if (valor == null || valor <= 0) return 'Informe um número válido';
+                      final valor = double.tryParse(
+                        (v ?? '').replaceAll(',', '.'),
+                      );
+                      if (valor == null || valor <= 0) {
+                        return 'Informe um número válido';
+                      }
                     }
                     return null;
                   },
@@ -275,13 +309,17 @@ Future<void> _abrirDialogoCorrigir(
             FilledButton(
               onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
-                await ref.read(qualidadeRepositoryProvider).corrigirApontamento(
+                await ref
+                    .read(qualidadeRepositoryProvider)
+                    .corrigirApontamento(
                       palete: palete,
                       ordem: ordem,
                       novaAlturaMm: ehConversao
                           ? null
                           : double.parse(controller.text.replaceAll(',', '.')),
-                      novasCamadas: ehConversao ? int.parse(controller.text) : null,
+                      novasCamadas: ehConversao
+                          ? int.parse(controller.text)
+                          : null,
                     );
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               },
@@ -311,12 +349,18 @@ Future<void> _abrirDialogoExcluir(
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Descarta ${palete.saldoDisponivel} chapas e soma ao refugo da OP.'),
+            Text(
+              'Descarta ${palete.saldoDisponivel} '
+              '${palete.setorOrigem == 'conversao' ? 'caixas' : 'chapas'} '
+              'e soma ao refugo da OP.',
+            ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: motivoSelecionado,
               decoration: const InputDecoration(labelText: 'Motivo'),
-              items: motivosRefugo.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+              items: motivosRefugo
+                  .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                  .toList(),
               onChanged: (v) => setState(() => motivoSelecionado = v!),
             ),
           ],
@@ -328,7 +372,9 @@ Future<void> _abrirDialogoExcluir(
           ),
           FilledButton(
             onPressed: () async {
-              await ref.read(qualidadeRepositoryProvider).excluirTotalmente(
+              await ref
+                  .read(qualidadeRepositoryProvider)
+                  .excluirTotalmente(
                     palete: palete,
                     ordemProducaoId: ordemProducaoId,
                     responsavelId: responsavelId,

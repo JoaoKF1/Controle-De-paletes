@@ -34,14 +34,18 @@ Future<void> abrirDialogoLancarRefugo(
                 keyboardType: TextInputType.number,
                 validator: (v) {
                   final n = int.tryParse(v ?? '');
-                  if (n == null || n <= 0) return 'Informe um número maior que zero';
+                  if (n == null || n <= 0) {
+                    return 'Informe um número maior que zero';
+                  }
                   return null;
                 },
               ),
               DropdownButtonFormField<String>(
                 initialValue: motivoSelecionado,
                 decoration: const InputDecoration(labelText: 'Motivo'),
-                items: motivosRefugo.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                items: motivosRefugo
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                    .toList(),
                 onChanged: (v) => setState(() => motivoSelecionado = v!),
               ),
             ],
@@ -55,7 +59,9 @@ Future<void> abrirDialogoLancarRefugo(
           FilledButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
-              await ref.read(qualidadeRepositoryProvider).lancarRefugo(
+              await ref
+                  .read(qualidadeRepositoryProvider)
+                  .lancarRefugo(
                     ordemProducaoId: ordemProducaoId,
                     responsavelId: usuario.id,
                     quantidade: int.parse(quantidadeController.text),

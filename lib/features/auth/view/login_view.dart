@@ -26,6 +26,8 @@ class _LoginViewState extends ConsumerState<LoginView> {
     final authState = ref.watch(authControllerProvider);
     final carregando = authState.status == AuthStatus.carregando;
 
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       body: Center(
         child: ConstrainedBox(
@@ -36,6 +38,16 @@ class _LoginViewState extends ConsumerState<LoginView> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                CircleAvatar(
+                  radius: 32,
+                  backgroundColor: colorScheme.primaryContainer,
+                  child: Icon(
+                    Icons.inventory_2_outlined,
+                    size: 32,
+                    color: colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Text(
                   'Controle de paletes',
                   style: Theme.of(context).textTheme.headlineSmall,
@@ -58,7 +70,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
                 if (authState.status == AuthStatus.erro) ...[
                   Text(
                     authState.mensagemErro ?? 'Erro ao entrar.',
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
@@ -82,7 +96,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
   }
 
   void _entrar() {
-    ref.read(authControllerProvider.notifier).entrar(
+    ref
+        .read(authControllerProvider.notifier)
+        .entrar(
           login: _loginController.text.trim(),
           senha: _senhaController.text,
         );

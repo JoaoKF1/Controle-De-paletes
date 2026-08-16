@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../domain/entities/composicao.dart';
+import '../../../shared/widgets/apontamento_kit.dart';
 
 final _composicoesProvider = FutureProvider.autoDispose<List<Composicao>>((
   ref,
@@ -28,16 +29,18 @@ class ComposicoesView extends ConsumerWidget {
               child: Text('Nenhuma composição cadastrada ainda.'),
             );
           }
-          return ListView.separated(
-            itemCount: composicoes.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final c = composicoes[i];
-              return ListTile(
-                title: Text(c.codigo),
-                subtitle: Text('Espessura: ${c.espessuraMm} mm'),
-              );
-            },
+          return LarguraFormulario(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: composicoes.length,
+              itemBuilder: (context, i) {
+                final c = composicoes[i];
+                return CartaoLista(
+                  title: Text(c.codigo),
+                  subtitle: Text('Espessura: ${c.espessuraMm} mm'),
+                );
+              },
+            ),
           );
         },
       ),

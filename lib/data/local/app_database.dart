@@ -24,8 +24,15 @@ class LocalOrdens extends Table {
   IntColumn get qpPadrao => integer()();
   TextColumn get clienteNome => text()();
   RealColumn get composicaoEspessuraMm => real()();
+  TextColumn get composicaoCodigo => text().nullable()();
+  // Substituído por comprimentoMm/larguraMm — mantido só pra não quebrar
+  // linhas de cache já gravadas antes da migração; nunca mais é escrito.
+  TextColumn get medidaChapa => text().nullable()();
+  RealColumn get comprimentoMm => real().nullable()();
+  RealColumn get larguraMm => real().nullable()();
   IntColumn get pacotesPorCamada => integer().nullable()();
   IntColumn get pecasPorPacote => integer().nullable()();
+  IntColumn get arranjo => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -83,7 +90,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.paraTeste(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -91,6 +98,17 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (m, from, to) async {
       if (from < 2) {
         await m.createTable(pendingOperations);
+      }
+      if (from < 3) {
+        await m.addColumn(localOrdens, localOrdens.composicaoCodigo);
+        await m.addColumn(localOrdens, localOrdens.medidaChapa);
+      }
+      if (from < 4) {
+        await m.addColumn(localOrdens, localOrdens.arranjo);
+      }
+      if (from < 5) {
+        await m.addColumn(localOrdens, localOrdens.comprimentoMm);
+        await m.addColumn(localOrdens, localOrdens.larguraMm);
       }
     },
   );
