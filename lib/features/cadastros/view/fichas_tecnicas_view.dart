@@ -182,7 +182,7 @@ class FichasTecnicasView extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _Campo(
+                    CampoRotulado(
                       rotulo: 'Código FT',
                       controller: codigoController,
                       hint: 'Ex: 055234',
@@ -191,7 +191,7 @@ class FichasTecnicasView extends ConsumerWidget {
                           : null,
                     ),
                     const SizedBox(height: 12),
-                    _RotuloDropdown(
+                    DropdownRotulado(
                       rotulo: 'Cliente',
                       valor: clienteIdSelecionado,
                       itens: clientes
@@ -206,7 +206,7 @@ class FichasTecnicasView extends ConsumerWidget {
                           setState(() => clienteIdSelecionado = v),
                     ),
                     const SizedBox(height: 12),
-                    _RotuloDropdown(
+                    DropdownRotulado(
                       rotulo: 'Composição',
                       valor: composicaoIdSelecionada,
                       itens: composicoes
@@ -221,37 +221,37 @@ class FichasTecnicasView extends ConsumerWidget {
                           setState(() => composicaoIdSelecionada = v),
                     ),
                     const SizedBox(height: 12),
-                    _linha(
-                      _Campo(
+                    linhaDupla(
+                      CampoRotulado(
                         rotulo: 'Comprimento (mm)',
                         controller: comprimentoController,
                         hint: 'Ex: 733',
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        validator: _validarNumeroPositivo,
+                        validator: validarNumeroPositivo,
                       ),
-                      _Campo(
+                      CampoRotulado(
                         rotulo: 'Largura (mm)',
                         controller: larguraController,
                         hint: 'Ex: 1.964',
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        validator: _validarNumeroPositivo,
+                        validator: validarNumeroPositivo,
                       ),
                     ),
                     const SizedBox(height: 20),
                     const RotuloSecaoMaiuscula('Vincos (opcional)'),
-                    _linha(
-                      _Campo(
+                    linhaDupla(
+                      CampoRotulado(
                         rotulo: 'Vinco 1',
                         controller: vinco1Controller,
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
                       ),
-                      _Campo(
+                      CampoRotulado(
                         rotulo: 'Vinco 2',
                         controller: vinco2Controller,
                         keyboardType: const TextInputType.numberWithOptions(
@@ -260,15 +260,15 @@ class FichasTecnicasView extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _linha(
-                      _Campo(
+                    linhaDupla(
+                      CampoRotulado(
                         rotulo: 'Vinco 3',
                         controller: vinco3Controller,
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
                       ),
-                      _Campo(
+                      CampoRotulado(
                         rotulo: 'Vinco 4',
                         controller: vinco4Controller,
                         keyboardType: const TextInputType.numberWithOptions(
@@ -277,7 +277,7 @@ class FichasTecnicasView extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _Campo(
+                    CampoRotulado(
                       rotulo: 'Vinco 5',
                       controller: vinco5Controller,
                       keyboardType: const TextInputType.numberWithOptions(
@@ -285,8 +285,8 @@ class FichasTecnicasView extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _linha(
-                      _Campo(
+                    linhaDupla(
+                      CampoRotulado(
                         rotulo: 'QP padrão',
                         controller: qpController,
                         hint: 'Nº de pilhas',
@@ -299,7 +299,7 @@ class FichasTecnicasView extends ConsumerWidget {
                           return null;
                         },
                       ),
-                      _Campo(
+                      CampoRotulado(
                         rotulo: 'Referência',
                         controller: referenciaController,
                         hint: 'Opcional',
@@ -307,15 +307,15 @@ class FichasTecnicasView extends ConsumerWidget {
                     ),
                     const SizedBox(height: 20),
                     const RotuloSecaoMaiuscula('Qualidade (opcional)'),
-                    _linha(
-                      _Campo(
+                    linhaDupla(
+                      CampoRotulado(
                         rotulo: 'Gramatura',
                         controller: gramaturaController,
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
                       ),
-                      _Campo(
+                      CampoRotulado(
                         rotulo: 'Coluna',
                         controller: colunaController,
                         keyboardType: const TextInputType.numberWithOptions(
@@ -324,15 +324,15 @@ class FichasTecnicasView extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _linha(
-                      _Campo(
+                    linhaDupla(
+                      CampoRotulado(
                         rotulo: 'Cobb interno',
                         controller: cobbInternoController,
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
                       ),
-                      _Campo(
+                      CampoRotulado(
                         rotulo: 'Cobb externo',
                         controller: cobbExternoController,
                         keyboardType: const TextInputType.numberWithOptions(
@@ -341,15 +341,15 @@ class FichasTecnicasView extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _linha(
-                      _Campo(
+                    linhaDupla(
+                      CampoRotulado(
                         rotulo: 'Mullen',
                         controller: mullenController,
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
                       ),
-                      _Campo(
+                      CampoRotulado(
                         rotulo: 'Compressão',
                         controller: compressaoController,
                         keyboardType: const TextInputType.numberWithOptions(
@@ -358,12 +358,12 @@ class FichasTecnicasView extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _linha(
-                      _Campo(
+                    linhaDupla(
+                      CampoRotulado(
                         rotulo: 'Resina interna',
                         controller: resinaInternaController,
                       ),
-                      _Campo(
+                      CampoRotulado(
                         rotulo: 'Resina externa',
                         controller: resinaExternaController,
                       ),
@@ -372,20 +372,20 @@ class FichasTecnicasView extends ConsumerWidget {
                     const RotuloSecaoMaiuscula(
                       'Paletização da Conversão (só p/ OP 802)',
                     ),
-                    _linha(
-                      _Campo(
+                    linhaDupla(
+                      CampoRotulado(
                         rotulo: 'Pacotes por camada',
                         controller: pacotesPorCamadaController,
                         keyboardType: TextInputType.number,
                       ),
-                      _Campo(
+                      CampoRotulado(
                         rotulo: 'Peças por pacote',
                         controller: pecasPorPacoteController,
                         keyboardType: TextInputType.number,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _Campo(
+                    CampoRotulado(
                       rotulo: 'Arranjo (caixas por chapa)',
                       controller: arranjoController,
                       hint: 'Vazio = 1 caixa por chapa',
@@ -479,82 +479,6 @@ class FichasTecnicasView extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-Widget _linha(Widget a, Widget b) => Row(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    Expanded(child: a),
-    const SizedBox(width: 12),
-    Expanded(child: b),
-  ],
-);
-
-String? _validarNumeroPositivo(String? v) {
-  final valor = double.tryParse((v ?? '').replaceAll(',', '.'));
-  if (valor == null || valor <= 0) return 'Obrigatório';
-  return null;
-}
-
-class _Campo extends StatelessWidget {
-  final String rotulo;
-  final TextEditingController controller;
-  final String? hint;
-  final TextInputType? keyboardType;
-  final String? Function(String?)? validator;
-
-  const _Campo({
-    required this.rotulo,
-    required this.controller,
-    this.hint,
-    this.keyboardType,
-    this.validator,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        RotuloSecao(rotulo),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          decoration: InputDecoration(hintText: hint),
-          validator: validator,
-        ),
-      ],
-    );
-  }
-}
-
-class _RotuloDropdown extends StatelessWidget {
-  final String rotulo;
-  final String? valor;
-  final List<DropdownMenuItem<String>> itens;
-  final ValueChanged<String?> onChanged;
-
-  const _RotuloDropdown({
-    required this.rotulo,
-    required this.valor,
-    required this.itens,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        RotuloSecao(rotulo),
-        DropdownButtonFormField<String>(
-          initialValue: valor,
-          items: itens,
-          onChanged: onChanged,
-        ),
-      ],
     );
   }
 }

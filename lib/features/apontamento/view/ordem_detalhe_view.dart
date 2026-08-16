@@ -62,10 +62,13 @@ class _OrdemDetalheViewState extends ConsumerState<OrdemDetalheView> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
         data: (paletes) {
-          final produzido = paletes.fold<int>(
-            0,
-            (s, p) => s + p.quantidadeCalculada,
-          );
+          // Só chapas da Onduladeira — as caixas que a Conversão apontar
+          // nessa mesma OP são outra unidade, não somam aqui (ver
+          // `alvoChapasOnduladeira`, plano técnico 9.1).
+          final produzido = paletes
+              .where((p) => p.setorOrigem == 'onduladeira')
+              .fold<int>(0, (s, p) => s + p.quantidadeCalculada);
+          final alvo = ordem.alvoChapasOnduladeira;
           return LarguraFormulario(
             child: Form(
               key: _formKey,
@@ -83,10 +86,8 @@ class _OrdemDetalheViewState extends ConsumerState<OrdemDetalheView> {
                   const SizedBox(height: 16),
                   CartaoProgresso(
                     rotulo: 'Produzido nesta OP',
-                    valor: '$produzido de ${ordem.quantidadePedida} chapas',
-                    progresso: ordem.quantidadePedida == 0
-                        ? 0
-                        : produzido / ordem.quantidadePedida,
+                    valor: '$produzido de $alvo chapas',
+                    progresso: alvo == 0 ? 0 : produzido / alvo,
                   ),
                   if (ordem.status == 'aberta') ...[
                     const SizedBox(height: 16),

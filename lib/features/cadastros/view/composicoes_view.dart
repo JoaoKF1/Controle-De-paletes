@@ -60,34 +60,32 @@ class ComposicoesView extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Nova composição'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: codigoController,
-                decoration: const InputDecoration(
-                  labelText: 'Código (ex: T140M130T140/B)',
+        content: SizedBox(
+          width: 380,
+          child: Form(
+            key: formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CampoRotulado(
+                  rotulo: 'Código',
+                  controller: codigoController,
+                  hint: 'Ex: T140M130T140/B',
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
                 ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-              ),
-              TextFormField(
-                controller: espessuraController,
-                decoration: const InputDecoration(labelText: 'Espessura (mm)'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+                const SizedBox(height: 12),
+                CampoRotulado(
+                  rotulo: 'Espessura (mm)',
+                  controller: espessuraController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: validarNumeroPositivo,
                 ),
-                validator: (v) {
-                  final valor = double.tryParse((v ?? '').replaceAll(',', '.'));
-                  if (valor == null || valor <= 0) {
-                    return 'Informe um valor maior que zero';
-                  }
-                  return null;
-                },
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [

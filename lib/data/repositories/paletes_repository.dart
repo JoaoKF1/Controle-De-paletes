@@ -52,11 +52,13 @@ class PaletesRepository {
     }
   }
 
-  /// Soma `quantidade_calculada` de tudo que já foi apontado em cada OP
-  /// (Onduladeira + Conversão juntas) — prévia de progresso pra lista da
-  /// Onduladeira. Uma query só pra todas as OPs da página (não N+1). Se
-  /// essa query falhar mas a lista de OPs já tiver vindo, devolve a lista
-  /// sem progresso em vez de derrubar a tela inteira pro modo offline.
+  /// Soma `quantidade_calculada` só dos paletes da Onduladeira em cada OP
+  /// (chapas — nunca as caixas da Conversão, que são outra unidade) contra
+  /// o alvo em chapas da OP (`alvoChapasOnduladeira`, já ajustado pelo
+  /// arranjo — ver plano técnico 9.1). Uma query só pra todas as OPs da
+  /// página (não N+1). Se essa query falhar mas a lista de OPs já tiver
+  /// vindo, devolve a lista sem progresso em vez de derrubar a tela
+  /// inteira pro modo offline.
   Future<List<OrdemProducaoInfo>> _comProgressoOnduladeira(
     List<OrdemProducaoInfo> ordens,
   ) async {
@@ -67,6 +69,7 @@ class PaletesRepository {
           .from('paletes')
           .select('ordem_producao_id, quantidade_calculada')
           .inFilter('ordem_producao_id', ids)
+          .eq('setor_origem', 'onduladeira')
           .timeout(timeoutRede);
       final somaPorOrdem = <String, int>{};
       for (final linha in dados as List) {
@@ -78,7 +81,7 @@ class PaletesRepository {
           .map(
             (o) => o.comProgresso(
               atual: somaPorOrdem[o.id] ?? 0,
-              alvo: o.quantidadePedida,
+              alvo: o.alvoChapasOnduladeira,
             ),
           )
           .toList();

@@ -57,7 +57,7 @@ class OrdensAbertasView extends ConsumerWidget {
                   title: Text(op.numeroOp),
                   subtitle: Text(
                     '${op.clienteNome} · FT ${op.codigoFt}'
-                    '${op.progressoAtual != null ? ' · ${op.progressoAtual}/${op.quantidadePedida}' : ''}',
+                    '${op.progressoAtual != null ? ' · ${op.progressoAtual}/${op.progressoAlvo} chapas' : ''}',
                   ),
                   trailing: Text('${op.quantidadePedida}'),
                   progresso: progresso,

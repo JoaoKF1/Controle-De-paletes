@@ -123,56 +123,61 @@ class UsuariosView extends ConsumerWidget {
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
           title: const Text('Novo usuário'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nomeController,
-                  decoration: const InputDecoration(labelText: 'Nome'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-                ),
-                TextFormField(
-                  controller: loginController,
-                  decoration: const InputDecoration(
-                    labelText: 'Usuário (login)',
+          content: SizedBox(
+            width: 380,
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CampoRotulado(
+                    rotulo: 'Nome',
+                    controller: nomeController,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  CampoRotulado(
+                    rotulo: 'Usuário (login)',
+                    controller: loginController,
                     helperText: 'Sem espaços, ex: joaoaguiar',
+                    validator: (v) {
+                      final valor = v?.trim() ?? '';
+                      if (valor.isEmpty) return 'Obrigatório';
+                      if (valor.contains(' ')) return 'Sem espaços';
+                      return null;
+                    },
                   ),
-                  validator: (v) {
-                    final valor = v?.trim() ?? '';
-                    if (valor.isEmpty) return 'Obrigatório';
-                    if (valor.contains(' ')) return 'Sem espaços';
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: senhaController,
-                  decoration: const InputDecoration(labelText: 'Senha'),
-                  obscureText: true,
-                  validator: (v) => (v == null || v.length < 6)
-                      ? 'Mínimo 6 caracteres'
-                      : null,
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: perfilSelecionado,
-                  decoration: const InputDecoration(labelText: 'Perfil'),
-                  items: _perfis
-                      .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                      .toList(),
-                  onChanged: (v) => setState(() => perfilSelecionado = v!),
-                ),
-                if (erro != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    erro!,
-                    style: TextStyle(
-                      color: Theme.of(dialogContext).colorScheme.error,
+                  const SizedBox(height: 12),
+                  CampoRotulado(
+                    rotulo: 'Senha',
+                    controller: senhaController,
+                    obscureText: true,
+                    validator: (v) => (v == null || v.length < 6)
+                        ? 'Mínimo 6 caracteres'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownRotulado(
+                    rotulo: 'Perfil',
+                    valor: perfilSelecionado,
+                    itens: _perfis
+                        .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                        .toList(),
+                    onChanged: (v) => setState(() => perfilSelecionado = v!),
+                  ),
+                  if (erro != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      erro!,
+                      style: TextStyle(
+                        color: Theme.of(dialogContext).colorScheme.error,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           actions: [
@@ -231,26 +236,31 @@ class UsuariosView extends ConsumerWidget {
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
           title: const Text('Editar usuário'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nomeController,
-                  decoration: const InputDecoration(labelText: 'Nome'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: perfilSelecionado,
-                  decoration: const InputDecoration(labelText: 'Perfil'),
-                  items: _perfis
-                      .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                      .toList(),
-                  onChanged: (v) => setState(() => perfilSelecionado = v!),
-                ),
-              ],
+          content: SizedBox(
+            width: 380,
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CampoRotulado(
+                    rotulo: 'Nome',
+                    controller: nomeController,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownRotulado(
+                    rotulo: 'Perfil',
+                    valor: perfilSelecionado,
+                    itens: _perfis
+                        .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                        .toList(),
+                    onChanged: (v) => setState(() => perfilSelecionado = v!),
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -299,29 +309,33 @@ class UsuariosView extends ConsumerWidget {
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
           title: Text('Trocar senha de ${usuario.nome}'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: senhaController,
-                  decoration: const InputDecoration(labelText: 'Nova senha'),
-                  obscureText: true,
-                  validator: (v) => (v == null || v.length < 6)
-                      ? 'Mínimo 6 caracteres'
-                      : null,
-                ),
-                if (erro != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    erro!,
-                    style: TextStyle(
-                      color: Theme.of(dialogContext).colorScheme.error,
-                    ),
+          content: SizedBox(
+            width: 380,
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CampoRotulado(
+                    rotulo: 'Nova senha',
+                    controller: senhaController,
+                    obscureText: true,
+                    validator: (v) => (v == null || v.length < 6)
+                        ? 'Mínimo 6 caracteres'
+                        : null,
                   ),
+                  if (erro != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      erro!,
+                      style: TextStyle(
+                        color: Theme.of(dialogContext).colorScheme.error,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           actions: [

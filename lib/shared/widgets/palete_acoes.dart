@@ -5,6 +5,7 @@ import '../../data/repositories/qualidade_repository.dart';
 import '../../domain/entities/palete.dart';
 import '../../domain/entities/refugo.dart';
 import '../../features/auth/controller/auth_controller.dart';
+import 'apontamento_kit.dart';
 
 /// Ações disponíveis ao tocar num palete já apontado — hoje via toque na
 /// lista (a leitura de código de barras de verdade só existe a partir do
@@ -129,36 +130,38 @@ Future<void> _abrirDialogoPedirRevisao(
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: Text('Pedir revisão — palete ${palete.numeroExibicao}'),
-      content: Form(
-        key: formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: quantidadeController,
-              decoration: InputDecoration(
-                labelText:
-                    'Quantidade afetada (máx. ${palete.saldoDisponivel})',
+      content: SizedBox(
+        width: 380,
+        child: Form(
+          key: formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CampoRotulado(
+                rotulo: 'Quantidade afetada (máx. ${palete.saldoDisponivel})',
+                controller: quantidadeController,
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  final n = int.tryParse(v ?? '');
+                  if (n == null || n <= 0) {
+                    return 'Informe um número maior que zero';
+                  }
+                  if (n > palete.saldoDisponivel) {
+                    return 'Maior que o saldo disponível';
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.number,
-              validator: (v) {
-                final n = int.tryParse(v ?? '');
-                if (n == null || n <= 0) {
-                  return 'Informe um número maior que zero';
-                }
-                if (n > palete.saldoDisponivel) {
-                  return 'Maior que o saldo disponível';
-                }
-                return null;
-              },
-            ),
-            TextFormField(
-              controller: motivoController,
-              decoration: const InputDecoration(labelText: 'Motivo'),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-            ),
-          ],
+              const SizedBox(height: 12),
+              CampoRotulado(
+                rotulo: 'Motivo',
+                controller: motivoController,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
@@ -258,47 +261,47 @@ Future<void> _abrirDialogoCorrigir(
 
         return AlertDialog(
           title: Text('Corrigir palete ${palete.numeroExibicao}'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: controller,
-                  decoration: InputDecoration(
-                    labelText: ehConversao
+          content: SizedBox(
+            width: 380,
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CampoRotulado(
+                    rotulo: ehConversao
                         ? 'Camadas de altura'
                         : 'Altura medida (mm)',
+                    controller: controller,
+                    keyboardType: ehConversao
+                        ? TextInputType.number
+                        : const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setState(() {}),
+                    validator: (v) {
+                      if (ehConversao) {
+                        final n = int.tryParse(v ?? '');
+                        if (n == null || n <= 0) {
+                          return 'Informe um número maior que zero';
+                        }
+                      } else {
+                        final valor = double.tryParse(
+                          (v ?? '').replaceAll(',', '.'),
+                        );
+                        if (valor == null || valor <= 0) {
+                          return 'Informe um número válido';
+                        }
+                      }
+                      return null;
+                    },
                   ),
-                  keyboardType: ehConversao
-                      ? TextInputType.number
-                      : const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => setState(() {}),
-                  validator: (v) {
-                    if (ehConversao) {
-                      final n = int.tryParse(v ?? '');
-                      if (n == null || n <= 0) {
-                        return 'Informe um número maior que zero';
-                      }
-                    } else {
-                      final valor = double.tryParse(
-                        (v ?? '').replaceAll(',', '.'),
-                      );
-                      if (valor == null || valor <= 0) {
-                        return 'Informe um número válido';
-                      }
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  novaQuantidade == null
-                      ? 'Nova quantidade: —'
-                      : 'Nova quantidade: $novaQuantidade',
-                  style: Theme.of(dialogContext).textTheme.titleMedium,
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  CartaoResultado(
+                    rotulo: 'Nova quantidade',
+                    valor: novaQuantidade == null ? '—' : '$novaQuantidade',
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -346,24 +349,28 @@ Future<void> _abrirDialogoExcluir(
     builder: (dialogContext) => StatefulBuilder(
       builder: (dialogContext, setState) => AlertDialog(
         title: Text('Excluir palete ${palete.numeroExibicao}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Descarta ${palete.saldoDisponivel} '
-              '${palete.setorOrigem == 'conversao' ? 'caixas' : 'chapas'} '
-              'e soma ao refugo da OP.',
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: motivoSelecionado,
-              decoration: const InputDecoration(labelText: 'Motivo'),
-              items: motivosRefugo
-                  .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                  .toList(),
-              onChanged: (v) => setState(() => motivoSelecionado = v!),
-            ),
-          ],
+        content: SizedBox(
+          width: 380,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Descarta ${palete.saldoDisponivel} '
+                '${palete.setorOrigem == 'conversao' ? 'caixas' : 'chapas'} '
+                'e soma ao refugo da OP.',
+              ),
+              const SizedBox(height: 12),
+              DropdownRotulado(
+                rotulo: 'Motivo',
+                valor: motivoSelecionado,
+                itens: motivosRefugo
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                    .toList(),
+                onChanged: (v) => setState(() => motivoSelecionado = v!),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

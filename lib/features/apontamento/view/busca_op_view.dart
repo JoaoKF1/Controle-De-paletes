@@ -79,15 +79,14 @@ class _BuscaOpViewState extends ConsumerState<BuscaOpView> {
               ),
               const SizedBox(height: 12),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: CampoRotulado(
+                      rotulo: _modo == _ModoBusca.porOp
+                          ? 'Número da OP'
+                          : 'Código da FT',
                       controller: _termoController,
-                      decoration: InputDecoration(
-                        labelText: _modo == _ModoBusca.porOp
-                            ? 'Número da OP'
-                            : 'Código da FT',
-                      ),
                       onSubmitted: (_) => _buscar(),
                     ),
                   ),

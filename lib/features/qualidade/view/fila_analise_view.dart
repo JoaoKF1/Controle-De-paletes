@@ -79,53 +79,55 @@ class FilaAnaliseView extends ConsumerWidget {
           title: Text(
             'OP ${ocorrencia.numeroOp} · Palete ${ocorrencia.paleteNumeroSequencial}',
           ),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${ocorrencia.motivo}\n\nQuantidade afetada: ${ocorrencia.quantidadeAfetada}',
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: quantidadeController,
-                  decoration: InputDecoration(
-                    labelText:
+          content: SizedBox(
+            width: 380,
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${ocorrencia.motivo}\n\nQuantidade afetada: ${ocorrencia.quantidadeAfetada}',
+                  ),
+                  const SizedBox(height: 12),
+                  CampoRotulado(
+                    rotulo:
                         'Quantidade reprovada (máx. ${ocorrencia.quantidadeAfetada})',
+                    controller: quantidadeController,
                     helperText:
                         '0 libera tudo · igual ao afetado reprova tudo · '
                         'valor no meio libera o resto',
+                    keyboardType: TextInputType.number,
+                    validator: (v) {
+                      final n = int.tryParse(v ?? '');
+                      if (n == null || n < 0) return 'Informe um número válido';
+                      if (n > ocorrencia.quantidadeAfetada) {
+                        return 'Maior que a quantidade afetada';
+                      }
+                      return null;
+                    },
                   ),
-                  keyboardType: TextInputType.number,
-                  validator: (v) {
-                    final n = int.tryParse(v ?? '');
-                    if (n == null || n < 0) return 'Informe um número válido';
-                    if (n > ocorrencia.quantidadeAfetada) {
-                      return 'Maior que a quantidade afetada';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: () =>
-                          setState(() => quantidadeController.text = '0'),
-                      child: const Text('Liberar tudo'),
-                    ),
-                    TextButton(
-                      onPressed: () => setState(
-                        () => quantidadeController.text = ocorrencia
-                            .quantidadeAfetada
-                            .toString(),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () =>
+                            setState(() => quantidadeController.text = '0'),
+                        child: const Text('Liberar tudo'),
                       ),
-                      child: const Text('Reprovar tudo'),
-                    ),
-                  ],
-                ),
-              ],
+                      TextButton(
+                        onPressed: () => setState(
+                          () => quantidadeController.text = ocorrencia
+                              .quantidadeAfetada
+                              .toString(),
+                        ),
+                        child: const Text('Reprovar tudo'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [

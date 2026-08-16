@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../data/repositories/dashboard_repository.dart';
 import '../../../domain/entities/dashboard_dados.dart';
+import '../../../shared/widgets/apontamento_kit.dart';
 
 // Paleta categórica validada (ver skill de dataviz): slot 1 azul, slot 2
 // laranja — ordem fixa, nunca ciclada. Sequencial reusa o mesmo azul.
@@ -36,33 +37,36 @@ class DashboardView extends ConsumerWidget {
       appBar: AppBar(title: const Text('Dashboard')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _linhaKpis(context, ref),
-            const SizedBox(height: 24),
-            Text(
-              'Produção por dia',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            _cartaoGrafico(
-              context,
-              height: 260,
-              child: _graficoProducao(context, ref),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Refugo por motivo',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            _cartaoGrafico(
-              context,
-              height: 260,
-              child: _graficoRefugo(context, ref),
-            ),
-          ],
+        child: LarguraFormulario(
+          maxWidth: 800,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _linhaKpis(context, ref),
+              const SizedBox(height: 24),
+              Text(
+                'Produção por dia',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              _cartaoGrafico(
+                context,
+                height: 260,
+                child: _graficoProducao(context, ref),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Refugo por motivo',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              _cartaoGrafico(
+                context,
+                height: 260,
+                child: _graficoRefugo(context, ref),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/apontamento_kit.dart';
 import '../controller/auth_controller.dart';
 
 class LoginView extends ConsumerStatefulWidget {
@@ -54,16 +55,16 @@ class _LoginViewState extends ConsumerState<LoginView> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                TextField(
+                CampoRotulado(
+                  rotulo: 'Usuário',
                   controller: _loginController,
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(labelText: 'Usuário'),
                 ),
                 const SizedBox(height: 16),
-                TextField(
+                CampoRotulado(
+                  rotulo: 'Senha',
                   controller: _senhaController,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Senha'),
                   onSubmitted: (_) => _entrar(),
                 ),
                 const SizedBox(height: 24),

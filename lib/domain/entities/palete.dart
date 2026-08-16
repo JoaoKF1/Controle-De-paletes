@@ -187,4 +187,14 @@ class OrdemProducaoInfo {
   /// formatação em cada tela que mostra a medida da chapa.
   String get medidaExibicao =>
       '${comprimentoMm.toStringAsFixed(0)} x ${larguraMm.toStringAsFixed(0)} mm';
+
+  /// `quantidade_pedida` é sempre o total de **caixas** que o cliente
+  /// pediu (o produto final) — nunca o que a Onduladeira precisa
+  /// produzir. Numa OP 802 com arranjo (ver `arranjoEfetivo`), a
+  /// Onduladeira só precisa de `quantidade_pedida ÷ arranjo` chapas pra
+  /// alimentar a Conversão render esse tanto de caixas; arredonda pra
+  /// cima pra nunca faltar material. Numa OP 803 (sem Conversão, sem
+  /// arranjo cadastrado) o alvo é a própria `quantidade_pedida` — chapa
+  /// já é o produto final ali.
+  int get alvoChapasOnduladeira => (quantidadePedida / arranjoEfetivo).ceil();
 }

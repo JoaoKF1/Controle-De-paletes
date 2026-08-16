@@ -109,6 +109,15 @@ class _OrdemDetalheConversaoViewState
                         ? 0
                         : chapasConsumidas / chapasTotal,
                   ),
+                  const SizedBox(height: 16),
+                  CartaoProgresso(
+                    rotulo: 'Progresso do pedido',
+                    valor:
+                        '$caixasProduzidas de ${ordem.quantidadePedida} caixas',
+                    progresso: ordem.quantidadePedida == 0
+                        ? 0
+                        : caixasProduzidas / ordem.quantidadePedida,
+                  ),
                   if (ordem.status == 'aberta' && semPaletizacao) ...[
                     const SizedBox(height: 16),
                     Text(

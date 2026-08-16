@@ -30,4 +30,9 @@ class OrdemProducao {
     'quantidade_pedida': quantidadePedida,
     'data_pedido': dataPedido.toIso8601String().split('T').first,
   };
+
+  /// `quantidade_pedida` é sempre o total do produto final: numa OP 803
+  /// isso já é chapa (não passa pela Conversão); numa 802 é caixa (ver
+  /// plano técnico, 9.1).
+  String get unidadePedido => numeroOp.startsWith('803') ? 'chapas' : 'caixas';
 }

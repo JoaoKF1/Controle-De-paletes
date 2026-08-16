@@ -50,6 +50,115 @@ class RotuloSecaoMaiuscula extends StatelessWidget {
   }
 }
 
+/// Campo de texto com `RotuloSecao` acima e hint dentro — o padrão de
+/// formulário usado em toda tela de cadastro do app, no lugar do label
+/// flutuante padrão do Material.
+class CampoRotulado extends StatelessWidget {
+  final String rotulo;
+  final TextEditingController controller;
+  final String? hint;
+  final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
+  final bool obscureText;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
+  final ValueChanged<String>? onChanged;
+  final int? maxLength;
+  final TextCapitalization textCapitalization;
+  final String? helperText;
+
+  const CampoRotulado({
+    super.key,
+    required this.rotulo,
+    required this.controller,
+    this.hint,
+    this.keyboardType,
+    this.validator,
+    this.obscureText = false,
+    this.textInputAction,
+    this.onSubmitted,
+    this.onChanged,
+    this.maxLength,
+    this.textCapitalization = TextCapitalization.none,
+    this.helperText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RotuloSecao(rotulo),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(hintText: hint, helperText: helperText),
+          validator: validator,
+          obscureText: obscureText,
+          textInputAction: textInputAction,
+          onFieldSubmitted: onSubmitted,
+          onChanged: onChanged,
+          maxLength: maxLength,
+          textCapitalization: textCapitalization,
+        ),
+      ],
+    );
+  }
+}
+
+/// Dropdown com `RotuloSecao` acima — mesmo padrão do `CampoRotulado`,
+/// pra selects em formulários de cadastro (Cliente, Composição, Ficha
+/// Técnica etc.).
+class DropdownRotulado extends StatelessWidget {
+  final String rotulo;
+  final String? valor;
+  final List<DropdownMenuItem<String>> itens;
+  final ValueChanged<String?> onChanged;
+
+  const DropdownRotulado({
+    super.key,
+    required this.rotulo,
+    required this.valor,
+    required this.itens,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RotuloSecao(rotulo),
+        DropdownButtonFormField<String>(
+          initialValue: valor,
+          items: itens,
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+}
+
+/// Duas colunas de mesma largura lado a lado — pra pares de campos
+/// relacionados num formulário (ex.: Comprimento/Largura, QP padrão/
+/// Referência).
+Widget linhaDupla(Widget a, Widget b) => Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Expanded(child: a),
+    const SizedBox(width: 12),
+    Expanded(child: b),
+  ],
+);
+
+/// Validador padrão pra campo numérico obrigatório e maior que zero
+/// (aceita vírgula como separador decimal).
+String? validarNumeroPositivo(String? v) {
+  final valor = double.tryParse((v ?? '').replaceAll(',', '.'));
+  if (valor == null || valor <= 0) return 'Obrigatório';
+  return null;
+}
+
 /// Cartão neutro com uma ou mais linhas de rótulo+valor — usado tanto pra
 /// mostrar dados de referência (Cliente, Composição, Medida, QP padrão)
 /// quanto pra uma linha avulsa (ex.: "Próximo palete desta OP"). Sem o tom
