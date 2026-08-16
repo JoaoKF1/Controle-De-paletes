@@ -67,8 +67,14 @@ class OrdemDetalheView extends ConsumerWidget {
                   itemBuilder: (context, i) {
                     final p = paletes[i];
                     return ListTile(
+                      leading: !p.sincronizado
+                          ? Icon(
+                              p.erroSincronizacao != null ? Icons.error_outline : Icons.sync,
+                              color: Theme.of(context).colorScheme.error,
+                            )
+                          : null,
                       title: Text(
-                        'Palete ${p.numeroSequencial}'
+                        'Palete ${p.numeroExibicao}'
                         '${p.rotuloSegregacao != null ? ' · ${p.rotuloSegregacao}' : ''}',
                         style: p.segregado
                             ? TextStyle(color: Theme.of(context).colorScheme.error)
@@ -77,7 +83,9 @@ class OrdemDetalheView extends ConsumerWidget {
                       subtitle: Text(
                         'Altura ${p.alturaMedidaMm?.toStringAsFixed(0) ?? '—'}mm · '
                         'Saldo ${p.saldoDisponivel}/${p.quantidadeCalculada} · ${p.tipoChapa}'
-                        '${p.revisorNome != null ? ' · revisado por ${p.revisorNome}' : ''}',
+                        '${p.revisorNome != null ? ' · revisado por ${p.revisorNome}' : ''}'
+                        '${!p.sincronizado ? ' · PENDENTE DE ENVIO' : ''}'
+                        '${p.erroSincronizacao != null ? ' · erro: ${p.erroSincronizacao}' : ''}',
                       ),
                       trailing: Text(DateFormat('HH:mm').format(p.dataHora)),
                       onTap: () async {

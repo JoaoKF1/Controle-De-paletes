@@ -19,6 +19,26 @@ Future<void> abrirAcoesPalete(
   required Palete palete,
   required OrdemProducaoInfo ordem,
 }) async {
+  if (!palete.sincronizado) {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Apontamento pendente'),
+        content: const Text(
+          'Esse palete ainda não foi sincronizado com o servidor — nenhuma ação '
+          'dá pra fazer nele até a conexão voltar e o envio ser confirmado.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Entendi'),
+          ),
+        ],
+      ),
+    );
+    return;
+  }
+
   final usuario = ref.read(authControllerProvider).usuario!;
   final ehDoSetor = usuario.perfil == palete.setorOrigem || usuario.perfil == 'admin';
   final ehQualidade = usuario.perfil == 'qualidade' || usuario.perfil == 'admin';
@@ -95,7 +115,7 @@ Future<void> _abrirDialogoPedirRevisao(
   await showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: Text('Pedir revisão — palete ${palete.numeroSequencial}'),
+      title: Text('Pedir revisão — palete ${palete.numeroExibicao}'),
       content: Form(
         key: formKey,
         child: Column(
@@ -157,7 +177,7 @@ Future<void> _confirmarSegregarInteiro(
     builder: (dialogContext) => AlertDialog(
       title: const Text('Segregar inteiro'),
       content: Text(
-        'Reprova o palete ${palete.numeroSequencial} inteiro agora, sem análise — '
+        'Reprova o palete ${palete.numeroExibicao} inteiro agora, sem análise — '
         'debita ${palete.saldoDisponivel} do saldo e soma ao refugo da OP. Confirma?',
       ),
       actions: [
@@ -211,7 +231,7 @@ Future<void> _abrirDialogoCorrigir(
         }
 
         return AlertDialog(
-          title: Text('Corrigir palete ${palete.numeroSequencial}'),
+          title: Text('Corrigir palete ${palete.numeroExibicao}'),
           content: Form(
             key: formKey,
             child: Column(
@@ -287,7 +307,7 @@ Future<void> _abrirDialogoExcluir(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
       builder: (dialogContext, setState) => AlertDialog(
-        title: Text('Excluir palete ${palete.numeroSequencial}'),
+        title: Text('Excluir palete ${palete.numeroExibicao}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

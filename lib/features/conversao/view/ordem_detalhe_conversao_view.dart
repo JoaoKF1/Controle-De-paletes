@@ -259,8 +259,14 @@ class _SecaoPaletes extends StatelessWidget {
                 ? 'Camadas ${p.camadas ?? '—'}'
                 : 'Altura ${p.alturaMedidaMm?.toStringAsFixed(0) ?? '—'}mm';
             return ListTile(
+              leading: !p.sincronizado
+                  ? Icon(
+                      p.erroSincronizacao != null ? Icons.error_outline : Icons.sync,
+                      color: Theme.of(context).colorScheme.error,
+                    )
+                  : null,
               title: Text(
-                'Palete ${p.numeroSequencial}'
+                'Palete ${p.numeroExibicao}'
                 '${p.rotuloSegregacao != null ? ' · ${p.rotuloSegregacao}' : ''}',
                 style: p.segregado
                     ? TextStyle(color: Theme.of(context).colorScheme.error)
@@ -268,7 +274,9 @@ class _SecaoPaletes extends StatelessWidget {
               ),
               subtitle: Text(
                 '$medida · Saldo ${p.saldoDisponivel}/${p.quantidadeCalculada}'
-                '${p.revisorNome != null ? ' · revisado por ${p.revisorNome}' : ''}',
+                '${p.revisorNome != null ? ' · revisado por ${p.revisorNome}' : ''}'
+                '${!p.sincronizado ? ' · PENDENTE DE ENVIO' : ''}'
+                '${p.erroSincronizacao != null ? ' · erro: ${p.erroSincronizacao}' : ''}',
               ),
               trailing: Text(DateFormat('HH:mm').format(p.dataHora)),
               onTap: onTapPalete == null ? null : () => onTapPalete!(p),

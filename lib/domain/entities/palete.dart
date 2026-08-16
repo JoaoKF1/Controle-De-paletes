@@ -4,7 +4,7 @@
 class Palete {
   final String id;
   final String ordemProducaoId;
-  final int numeroSequencial;
+  final int? numeroSequencial;
   final double? alturaMedidaMm;
   final int? camadas;
   final int quantidadeCalculada;
@@ -16,11 +16,16 @@ class Palete {
   final int quantidadeReprovada;
   final int saldoDisponivel;
   final String? revisorNome;
+  // false só pra apontamentos feitos offline, ainda na fila local
+  // aguardando envio — todo palete vindo do servidor já é sincronizado por
+  // definição (ver plano técnico, modo offline).
+  final bool sincronizado;
+  final String? erroSincronizacao;
 
   const Palete({
     required this.id,
     required this.ordemProducaoId,
-    required this.numeroSequencial,
+    this.numeroSequencial,
     this.alturaMedidaMm,
     this.camadas,
     required this.quantidadeCalculada,
@@ -32,6 +37,8 @@ class Palete {
     required this.quantidadeReprovada,
     required this.saldoDisponivel,
     this.revisorNome,
+    this.sincronizado = true,
+    this.erroSincronizacao,
   });
 
   /// Rótulo de segregação pra exibir na lista — null se nunca foi
@@ -45,10 +52,14 @@ class Palete {
 
   bool get segregado => quantidadeReprovada > 0;
 
+  /// Texto pro número do palete — "pendente" enquanto não sincronizou,
+  /// porque o número definitivo só é atribuído pelo servidor.
+  String get numeroExibicao => numeroSequencial?.toString() ?? 'pendente';
+
   factory Palete.fromMap(Map<String, dynamic> map) => Palete(
         id: map['id'] as String,
         ordemProducaoId: map['ordem_producao_id'] as String,
-        numeroSequencial: map['numero_sequencial'] as int,
+        numeroSequencial: map['numero_sequencial'] as int?,
         alturaMedidaMm: (map['altura_medida_mm'] as num?)?.toDouble(),
         camadas: map['camadas'] as int?,
         quantidadeCalculada: map['quantidade_calculada'] as int,
