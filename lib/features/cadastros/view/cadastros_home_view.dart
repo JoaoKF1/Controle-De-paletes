@@ -7,6 +7,7 @@ import '../../apontamento/view/ordens_abertas_view.dart';
 import '../../conversao/view/ordens_disponiveis_view.dart';
 import '../../dashboard/view/dashboard_view.dart';
 import '../../qualidade/view/fila_analise_view.dart';
+import '../../sincronizacao/view/pendencias_view.dart';
 import 'clientes_view.dart';
 import 'composicoes_view.dart';
 import 'fichas_tecnicas_view.dart';
@@ -103,6 +104,13 @@ class CadastrosHomeView extends ConsumerWidget {
             titulo: 'Dashboard',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const DashboardView()),
+            ),
+          ),
+          _CadastroTile(
+            icone: Icons.sync_problem_outlined,
+            titulo: 'Pendências de sincronização',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PendenciasView()),
             ),
           ),
         ],

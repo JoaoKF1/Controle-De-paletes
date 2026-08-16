@@ -149,7 +149,7 @@ Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer
 | 5 | Refugo (motivo pré-definido) + Ocorrências de Qualidade (segregação parcial/total, saldo do palete, ações por perfil, histórico) — **entregue**, testado em `feat/refugo-qualidade`. Leitura de código de barras de verdade fica pro Sprint 6 (ver 9.5) |
 | 6 | Geração e impressão de etiqueta (PDF + rede WiFi) — **adiado**: layout da etiqueta depende de aprovação da gerência. Não bloqueia nenhum sprint seguinte (as ações que dependeriam de ler código de barras já funcionam por toque na lista — ver 9.5) |
 | 7 | Dashboard e relatórios (desktop) — **implementado**, aguardando teste. Acessível pelo Admin em Cadastros. KPIs (OPs abertas/concluídas, ocorrências em análise) + produção por dia/setor (linha) + refugo por motivo (barra), com `fl_chart` |
-| 8 | Modo offline (SQLite local + sincronização) |
+| 8 | Modo offline (SQLite local + sincronização) — **implementado**, aguardando teste. Fase 1: cache de OPs/paletes + apontamento offline pra Onduladeira e Conversão (ver 9.12). Fase 2: refugo, pedir revisão de qualidade e cadastros do Admin, com fila genérica (ver 9.13) — o que depende de saldo atual do palete (segregar/resolver/corrigir/excluir) continua exigindo conexão de propósito |
 | 9 | Testes com usuários piloto (Onduladeira + Conversão), ajustes finais |
 
 ---
@@ -242,6 +242,28 @@ O perfil `admin` não fica restrito aos cadastros — ele também acessa as tela
 - **`ocorrencias_qualidade`**: leitura geral; **insert** liberado pra qualquer autenticado (é a regra "qualquer setor abre ocorrência" de 9.4); **update** do `status` só pra `qualidade` (ou admin) — ninguém mais resolve uma ocorrência.
 - **`historico_ocorrencia`**: leitura geral; insert só quando a Qualidade (ou admin) resolve uma ocorrência.
 
+### 9.12 Modo offline — Fase 1 (Sprint 8)
+
+Cobre só o caminho crítico: continuar apontando palete mesmo sem internet, pra Onduladeira e Conversão. Refugo, ocorrências de qualidade e cadastros continuam exigindo conexão (Fase 2, mesma infraestrutura, ainda não construída).
+
+**Padrão usado — fila de escrita (outbox) separada de cache de leitura, não replicação total do banco:**
+
+- **Cache de leitura** (`LocalOrdens`, banco SQLite local via `drift`, arquivo próprio fora do Supabase): guarda as OPs em aberto. Toda vez que a Onduladeira busca a lista online com sucesso, o cache é **substituído por inteiro** (não acumula — evita o "armazenamento progressivo"). A busca da Conversão, por ser um subconjunto (só 802 com palete da Onduladeira), só complementa o cache sem apagar o que já tem. Offline, cada tela lê desse mesmo cache, filtrando localmente pela mesma regra da versão online (Conversão perde só a checagem exata de "já tem palete da Onduladeira" — vira aproximação por prefixo, até reconectar).
+- **Cache de paletes** (`LocalPaletes`): guarda os paletes de uma OP assim que a tela de detalhe é aberta com sucesso online — não é pré-carregado pra toda OP aberta, só pra quem o operador realmente visitou (mantém o cache pequeno).
+- **Fila de pendentes**: um apontamento feito offline vira uma linha em `LocalPaletes` com `sincronizado = false` e um **id gerado no aparelho** (uuid) — nunca um número sequencial, porque dois aparelhos offline apontando pra mesma OP não têm como combinar quem fica com qual número. O `numero_sequencial` definitivo só é atribuído pelo servidor no momento da sincronização (mesma lógica de sempre: pega o maior da OP e soma 1). O palete aparece na lista com "PENDENTE DE ENVIO" enquanto isso.
+- **Detecção de rede**: não confia num status de conectividade isolado — cada chamada ao Supabase tem timeout de 6s, e falha de rede (timeout, `SocketException`, etc.) é o que decide cair pro caminho offline, não uma verificação prévia. O pacote `connectivity_plus` só é usado pra saber **quando tentar de novo** (dispara `sincronizarPendentes()` sempre que a conexão volta), não pra decidir se uma ação individual deve ir direto pro cache.
+- **Sincronização**: percorre a fila item a item; cada um só sai da fila se o servidor confirmar. Se falhar (ex: a OP foi concluída por outra pessoa enquanto estava offline), a linha fica marcada com o erro em vez de sumir ou tentar de novo sozinha sem avisar — aparece na lista como "erro: …".
+- **Ações que dependem do palete já existir no servidor** (pedir revisão, segregar, corrigir, excluir — ver 9.5) ficam bloqueadas num palete ainda pendente, com aviso explicando o motivo.
+
+### 9.13 Modo offline — Fase 2 (refugo, ocorrência, cadastros)
+
+Estende a mesma fila de pendentes da Fase 1, mas de forma genérica: uma única tabela local (`PendingOperations`, `tipo` + `payload` json) em vez de uma tabela por entidade. Cobre só as escritas que **não dependem de ler o estado atual de nada no servidor antes** — por isso o recorte não é "tudo", é bem específico:
+
+- **Entram na fila**: lançar refugo, pedir revisão de qualidade, criar Cliente/Composição/Ficha Técnica/OP, editar Ficha Técnica. Nenhuma dessas precisa saber o que já existe no servidor pra ser válida — só grava um registro novo (ou atualiza um id que o app já tem).
+- **Não entram — continuam exigindo conexão**: segregar inteiro, resolver ocorrência, corrigir apontamento, excluir totalmente. Todas essas debitam em cima do **saldo atual** do palete; fazer isso com um número que pode estar desatualizado (por exemplo, outra ocorrência já debitou uma parte enquanto o aparelho estava offline) arrisca um débito incorreto que o app não teria como perceber sozinho. Diferente do `numero_sequencial` do palete (que só é "cosmético" e se resolve sozinho no servidor), aqui o próprio valor sendo gravado depende do estado — não dá pra adiar a leitura com segurança.
+- **Diferença de visibilidade em relação à Fase 1**: apontamento de palete tem cache próprio, então o item pendente aparece na lista de paletes da OP, junto com os outros. Refugo/ocorrência/cadastros não têm lista em cache — o item some da tela de origem até sincronizar. A confirmação de que "salvou, só não sincronizou ainda" fica na tela **Pendências de sincronização** (Admin, em Cadastros), que mostra as duas filas (apontamentos + fila genérica) ao vivo, com o erro de cada item que falhar e um botão de sincronizar manualmente.
+- O dispatcher da fila genérica (`Sincronizador._enviar`) interpreta `tipo` como `<tabela>_criar` ou `<tabela>_atualizar` pros cadastros, e como `refugo`/`ocorrencia_abrir` pros outros dois — não precisa de um caso novo por tabela, só de payload com as mesmas chaves que o insert/update já usaria.
+
 ---
 
 ## 10. Fora de escopo por agora (Fase 2)
@@ -250,3 +272,4 @@ O perfil `admin` não fica restrito aos cadastros — ele também acessa as tela
 - **Perfil `expedicao`**: consulta de OPs 802 em produção, carregamento pro cliente.
 - Chapa elaborada com fluxo de Quebra mais refinado.
 - OCR de etiqueta.
+- **Modo offline — ações que dependem de saldo atual do palete** (segregar inteiro, resolver ocorrência, corrigir apontamento, excluir totalmente): continuam exigindo conexão de propósito — ver 9.13.

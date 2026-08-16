@@ -6,6 +6,7 @@ import '../../features/auth/controller/auth_controller.dart';
 import '../../features/auth/view/home_placeholder_view.dart';
 import '../../features/auth/view/login_view.dart';
 import '../../features/cadastros/view/cadastros_home_view.dart';
+import '../../data/local/sync_trigger.dart';
 import '../../features/conversao/view/ordens_disponiveis_view.dart';
 import '../../features/qualidade/view/fila_analise_view.dart';
 
@@ -22,6 +23,7 @@ class AuthGate extends ConsumerWidget {
 
     switch (authState.status) {
       case AuthStatus.autenticado:
+        ref.watch(syncTriggerProvider);
         switch (authState.usuario?.perfil) {
           case 'admin':
             return const CadastrosHomeView();

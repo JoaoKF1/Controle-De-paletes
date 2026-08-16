@@ -1,32 +1,50 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../domain/entities/ocorrencia_qualidade.dart';
 import '../../domain/entities/palete.dart';
+import '../local/app_database.dart';
+import '../local/rede.dart';
 import '../remote/supabase_provider.dart';
 
 const _selectOcorrenciaComJoins = '*, paletes(numero_sequencial, ordens_producao(numero_op))';
+const _uuid = Uuid();
 
 /// Débito de saldo genérico: usado tanto quando a Qualidade reprova/segrega
 /// quanto quando o próprio setor exclui o que produziu. Nos dois casos o
 /// palete perde saldo e a OP ganha um lançamento de refugo — só muda quem
 /// aciona e se passa por uma ocorrência antes (ver plano técnico, 9.3/9.4).
+///
+/// `lancarRefugo` e `abrirOcorrencia` entram na fila offline (Fase 2, ver
+/// 9.12) porque não dependem de ler nada fresco do servidor antes. As
+/// outras ações desta classe (segregar, resolver, corrigir, excluir) ficam
+/// de fora de propósito: todas debitam em cima do saldo *atual* do palete,
+/// e fazer isso com dado desatualizado arrisca um débito incorreto — essas
+/// continuam exigindo conexão.
 class QualidadeRepository {
   final SupabaseClient _client;
-  QualidadeRepository(this._client);
+  final AppDatabase _db;
+  QualidadeRepository(this._client, this._db);
 
   Future<void> lancarRefugo({
     required String ordemProducaoId,
     required String responsavelId,
     required int quantidade,
     required String motivo,
-  }) {
-    return _client.from('refugos').insert({
+  }) async {
+    final dados = {
       'ordem_producao_id': ordemProducaoId,
       'responsavel_id': responsavelId,
       'quantidade': quantidade,
       'motivo': motivo,
-    });
+    };
+    try {
+      await _client.from('refugos').insert(dados).timeout(timeoutRede);
+    } catch (e) {
+      if (!falhaDeRede(e)) rethrow;
+      await _db.inserirOperacaoPendenteMap(id: _uuid.v4(), tipo: 'refugo', dados: dados);
+    }
   }
 
   Future<void> abrirOcorrencia({
@@ -34,13 +52,19 @@ class QualidadeRepository {
     required int quantidadeAfetada,
     required String motivo,
     required String abertoPor,
-  }) {
-    return _client.from('ocorrencias_qualidade').insert({
+  }) async {
+    final dados = {
       'palete_id': paleteId,
       'quantidade_afetada': quantidadeAfetada,
       'motivo': motivo,
       'aberto_por': abertoPor,
-    });
+    };
+    try {
+      await _client.from('ocorrencias_qualidade').insert(dados).timeout(timeoutRede);
+    } catch (e) {
+      if (!falhaDeRede(e)) rethrow;
+      await _db.inserirOperacaoPendenteMap(id: _uuid.v4(), tipo: 'ocorrencia_abrir', dados: dados);
+    }
   }
 
   Future<List<OcorrenciaQualidade>> listarEmAnalise() async {
@@ -190,5 +214,6 @@ class QualidadeRepository {
 
 final qualidadeRepositoryProvider = Provider<QualidadeRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return QualidadeRepository(client);
+  final db = ref.watch(appDatabaseProvider);
+  return QualidadeRepository(client, db);
 });
