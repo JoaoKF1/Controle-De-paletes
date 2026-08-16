@@ -20,13 +20,13 @@ class AuthControllerState {
   const AuthControllerState.carregando() : this(status: AuthStatus.carregando);
 
   const AuthControllerState.naoAutenticado()
-      : this(status: AuthStatus.naoAutenticado);
+    : this(status: AuthStatus.naoAutenticado);
 
   const AuthControllerState.autenticado(Usuario usuario)
-      : this(status: AuthStatus.autenticado, usuario: usuario);
+    : this(status: AuthStatus.autenticado, usuario: usuario);
 
   const AuthControllerState.erro(String mensagem)
-      : this(status: AuthStatus.erro, mensagemErro: mensagem);
+    : this(status: AuthStatus.erro, mensagemErro: mensagem);
 }
 
 class AuthController extends Notifier<AuthControllerState> {
@@ -65,7 +65,9 @@ class AuthController extends Notifier<AuthControllerState> {
     } on AuthException catch (e) {
       state = AuthControllerState.erro(e.message);
     } catch (_) {
-      state = const AuthControllerState.erro('Erro inesperado. Tente novamente.');
+      state = const AuthControllerState.erro(
+        'Erro inesperado. Tente novamente.',
+      );
     }
   }
 
@@ -79,7 +81,9 @@ class AuthController extends Notifier<AuthControllerState> {
       final usuario = await _repository.buscarPerfil(userId);
       if (!usuario.ativo) {
         await _repository.sair();
-        state = const AuthControllerState.erro('Usuário inativo. Fale com o Admin.');
+        state = const AuthControllerState.erro(
+          'Usuário inativo. Fale com o Admin.',
+        );
         return;
       }
       state = AuthControllerState.autenticado(usuario);

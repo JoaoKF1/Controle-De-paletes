@@ -5,7 +5,11 @@ class ProducaoDia {
   final int onduladeira;
   final int conversao;
 
-  const ProducaoDia({required this.dia, required this.onduladeira, required this.conversao});
+  const ProducaoDia({
+    required this.dia,
+    required this.onduladeira,
+    required this.conversao,
+  });
 }
 
 /// Total de refugo somado por motivo — todos os lançamentos, manuais e os

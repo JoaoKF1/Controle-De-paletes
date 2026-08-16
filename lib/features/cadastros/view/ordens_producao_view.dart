@@ -30,9 +30,9 @@ class OrdensProducaoView extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.search),
             tooltip: 'Buscar OP',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const BuscaOpView()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const BuscaOpView())),
           ),
         ],
       ),

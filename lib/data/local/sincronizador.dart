@@ -43,7 +43,10 @@ class Sincronizador {
       return;
     }
     if (tipo == 'ocorrencia_abrir') {
-      await _client.from('ocorrencias_qualidade').insert(dados).timeout(timeoutRede);
+      await _client
+          .from('ocorrencias_qualidade')
+          .insert(dados)
+          .timeout(timeoutRede);
       return;
     }
     // Cadastros: tipo vem como '<tabela>_criar' ou '<tabela>_atualizar'
@@ -52,7 +55,11 @@ class Sincronizador {
       final tabela = tipo.substring(0, tipo.length - '_atualizar'.length);
       final id = dados['id'] as String;
       final semId = Map<String, dynamic>.from(dados)..remove('id');
-      await _client.from(tabela).update(semId).eq('id', id).timeout(timeoutRede);
+      await _client
+          .from(tabela)
+          .update(semId)
+          .eq('id', id)
+          .timeout(timeoutRede);
       return;
     }
     if (tipo.endsWith('_criar')) {

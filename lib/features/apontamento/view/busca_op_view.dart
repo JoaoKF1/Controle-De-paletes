@@ -82,7 +82,9 @@ class _BuscaOpViewState extends ConsumerState<BuscaOpView> {
                   child: TextField(
                     controller: _termoController,
                     decoration: InputDecoration(
-                      labelText: _modo == _ModoBusca.porOp ? 'Número da OP' : 'Código da FT',
+                      labelText: _modo == _ModoBusca.porOp
+                          ? 'Número da OP'
+                          : 'Código da FT',
                     ),
                     onSubmitted: (_) => _buscar(),
                   ),
@@ -96,7 +98,10 @@ class _BuscaOpViewState extends ConsumerState<BuscaOpView> {
             ),
             if (_erro != null) ...[
               const SizedBox(height: 8),
-              Text(_erro!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(
+                _erro!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
             const SizedBox(height: 16),
             Expanded(
@@ -116,7 +121,9 @@ class _BuscaOpViewState extends ConsumerState<BuscaOpView> {
                           ),
                           trailing: Text('${op.quantidadePedida}'),
                           onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => OrdemDetalheView(ordem: op)),
+                            MaterialPageRoute(
+                              builder: (_) => OrdemDetalheView(ordem: op),
+                            ),
                           ),
                         );
                       },

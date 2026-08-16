@@ -83,24 +83,42 @@ class FichasTecnicasView extends ConsumerWidget {
     }
 
     final formKey = GlobalKey<FormState>();
-    final codigoController = TextEditingController(text: existente?.codigoFt ?? '');
-    final medidaController = TextEditingController(text: existente?.medidaChapa ?? '');
-    final qpController = TextEditingController(text: existente?.qpPadrao.toString() ?? '');
-    final referenciaController = TextEditingController(text: existente?.referencia ?? '');
-    final gramaturaController = TextEditingController(text: existente?.gramatura?.toString() ?? '');
-    final colunaController = TextEditingController(text: existente?.coluna?.toString() ?? '');
+    final codigoController = TextEditingController(
+      text: existente?.codigoFt ?? '',
+    );
+    final medidaController = TextEditingController(
+      text: existente?.medidaChapa ?? '',
+    );
+    final qpController = TextEditingController(
+      text: existente?.qpPadrao.toString() ?? '',
+    );
+    final referenciaController = TextEditingController(
+      text: existente?.referencia ?? '',
+    );
+    final gramaturaController = TextEditingController(
+      text: existente?.gramatura?.toString() ?? '',
+    );
+    final colunaController = TextEditingController(
+      text: existente?.coluna?.toString() ?? '',
+    );
     final cobbInternoController = TextEditingController(
       text: existente?.cobbInterno?.toString() ?? '',
     );
     final cobbExternoController = TextEditingController(
       text: existente?.cobbExterno?.toString() ?? '',
     );
-    final mullenController = TextEditingController(text: existente?.mullen?.toString() ?? '');
+    final mullenController = TextEditingController(
+      text: existente?.mullen?.toString() ?? '',
+    );
     final compressaoController = TextEditingController(
       text: existente?.compressao?.toString() ?? '',
     );
-    final resinaInternaController = TextEditingController(text: existente?.resinaInterna ?? '');
-    final resinaExternaController = TextEditingController(text: existente?.resinaExterna ?? '');
+    final resinaInternaController = TextEditingController(
+      text: existente?.resinaInterna ?? '',
+    );
+    final resinaExternaController = TextEditingController(
+      text: existente?.resinaExterna ?? '',
+    );
     final pacotesPorCamadaController = TextEditingController(
       text: existente?.pacotesPorCamada?.toString() ?? '',
     );
@@ -108,13 +126,16 @@ class FichasTecnicasView extends ConsumerWidget {
       text: existente?.pecasPorPacote?.toString() ?? '',
     );
     String? clienteIdSelecionado = existente?.clienteId ?? clientes.first.id;
-    String? composicaoIdSelecionada = existente?.composicaoId ?? composicoes.first.id;
+    String? composicaoIdSelecionada =
+        existente?.composicaoId ?? composicoes.first.id;
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
-          title: Text(existente == null ? 'Nova Ficha Técnica' : 'Editar Ficha Técnica'),
+          title: Text(
+            existente == null ? 'Nova Ficha Técnica' : 'Editar Ficha Técnica',
+          ),
           content: SingleChildScrollView(
             child: Form(
               key: formKey,
@@ -193,40 +214,60 @@ class FichasTecnicasView extends ConsumerWidget {
                   TextFormField(
                     controller: gramaturaController,
                     decoration: const InputDecoration(labelText: 'Gramatura'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                   TextFormField(
                     controller: colunaController,
                     decoration: const InputDecoration(labelText: 'Coluna'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                   TextFormField(
                     controller: cobbInternoController,
-                    decoration: const InputDecoration(labelText: 'Cobb Interno'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Cobb Interno',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                   TextFormField(
                     controller: cobbExternoController,
-                    decoration: const InputDecoration(labelText: 'Cobb Externo'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Cobb Externo',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                   TextFormField(
                     controller: mullenController,
                     decoration: const InputDecoration(labelText: 'Mullen'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                   TextFormField(
                     controller: compressaoController,
                     decoration: const InputDecoration(labelText: 'Compressão'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                   TextFormField(
                     controller: resinaInternaController,
-                    decoration: const InputDecoration(labelText: 'Resina Interna'),
+                    decoration: const InputDecoration(
+                      labelText: 'Resina Interna',
+                    ),
                   ),
                   TextFormField(
                     controller: resinaExternaController,
-                    decoration: const InputDecoration(labelText: 'Resina Externa'),
+                    decoration: const InputDecoration(
+                      labelText: 'Resina Externa',
+                    ),
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
@@ -234,16 +275,22 @@ class FichasTecnicasView extends ConsumerWidget {
                   ),
                   const Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Paletização da Conversão (opcional, só p/ OP 802)'),
+                    child: Text(
+                      'Paletização da Conversão (opcional, só p/ OP 802)',
+                    ),
                   ),
                   TextFormField(
                     controller: pacotesPorCamadaController,
-                    decoration: const InputDecoration(labelText: 'Pacotes por camada'),
+                    decoration: const InputDecoration(
+                      labelText: 'Pacotes por camada',
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                   TextFormField(
                     controller: pecasPorPacoteController,
-                    decoration: const InputDecoration(labelText: 'Peças (caixas) por pacote'),
+                    decoration: const InputDecoration(
+                      labelText: 'Peças (caixas) por pacote',
+                    ),
                     keyboardType: TextInputType.number,
                   ),
                 ],
@@ -293,7 +340,9 @@ class FichasTecnicasView extends ConsumerWidget {
                   resinaExterna: resinaExternaController.text.trim().isEmpty
                       ? null
                       : resinaExternaController.text.trim(),
-                  pacotesPorCamada: int.tryParse(pacotesPorCamadaController.text),
+                  pacotesPorCamada: int.tryParse(
+                    pacotesPorCamadaController.text,
+                  ),
                   pecasPorPacote: int.tryParse(pecasPorPacoteController.text),
                 );
                 final repo = ref.read(cadastrosRepositoryProvider);

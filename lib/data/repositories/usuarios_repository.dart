@@ -25,14 +25,23 @@ class UsuariosRepository {
   }) async {
     final res = await _client.functions.invoke(
       'admin-usuarios',
-      body: {'acao': 'criar', 'login': login, 'senha': senha, 'nome': nome, 'perfil': perfil},
+      body: {
+        'acao': 'criar',
+        'login': login,
+        'senha': senha,
+        'nome': nome,
+        'perfil': perfil,
+      },
     );
     if (res.status != 200) {
       throw Exception(res.data?['erro'] ?? 'Falha ao criar usuário');
     }
   }
 
-  Future<void> trocarSenha({required String userId, required String novaSenha}) async {
+  Future<void> trocarSenha({
+    required String userId,
+    required String novaSenha,
+  }) async {
     final res = await _client.functions.invoke(
       'admin-usuarios',
       body: {'acao': 'trocar_senha', 'user_id': userId, 'senha': novaSenha},
@@ -47,7 +56,10 @@ class UsuariosRepository {
     required String nome,
     required String perfil,
   }) {
-    return _client.from('profiles').update({'nome': nome, 'perfil': perfil}).eq('id', userId);
+    return _client
+        .from('profiles')
+        .update({'nome': nome, 'perfil': perfil})
+        .eq('id', userId);
   }
 
   Future<void> definirAtivo({required String userId, required bool ativo}) {

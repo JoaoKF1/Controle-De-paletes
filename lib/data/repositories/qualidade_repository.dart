@@ -8,7 +8,8 @@ import '../local/app_database.dart';
 import '../local/rede.dart';
 import '../remote/supabase_provider.dart';
 
-const _selectOcorrenciaComJoins = '*, paletes(numero_sequencial, ordens_producao(numero_op))';
+const _selectOcorrenciaComJoins =
+    '*, paletes(numero_sequencial, ordens_producao(numero_op))';
 const _uuid = Uuid();
 
 /// Débito de saldo genérico: usado tanto quando a Qualidade reprova/segrega
@@ -43,7 +44,11 @@ class QualidadeRepository {
       await _client.from('refugos').insert(dados).timeout(timeoutRede);
     } catch (e) {
       if (!falhaDeRede(e)) rethrow;
-      await _db.inserirOperacaoPendenteMap(id: _uuid.v4(), tipo: 'refugo', dados: dados);
+      await _db.inserirOperacaoPendenteMap(
+        id: _uuid.v4(),
+        tipo: 'refugo',
+        dados: dados,
+      );
     }
   }
 
@@ -60,10 +65,17 @@ class QualidadeRepository {
       'aberto_por': abertoPor,
     };
     try {
-      await _client.from('ocorrencias_qualidade').insert(dados).timeout(timeoutRede);
+      await _client
+          .from('ocorrencias_qualidade')
+          .insert(dados)
+          .timeout(timeoutRede);
     } catch (e) {
       if (!falhaDeRede(e)) rethrow;
-      await _db.inserirOperacaoPendenteMap(id: _uuid.v4(), tipo: 'ocorrencia_abrir', dados: dados);
+      await _db.inserirOperacaoPendenteMap(
+        id: _uuid.v4(),
+        tipo: 'ocorrencia_abrir',
+        dados: dados,
+      );
     }
   }
 
@@ -91,7 +103,10 @@ class QualidadeRepository {
 
     await _client
         .from('ocorrencias_qualidade')
-        .update({'status': novoStatus, 'quantidade_reprovada': quantidadeReprovada})
+        .update({
+          'status': novoStatus,
+          'quantidade_reprovada': quantidadeReprovada,
+        })
         .eq('id', ocorrencia.id);
 
     await _client.from('historico_ocorrencia').insert({
@@ -202,11 +217,20 @@ class QualidadeRepository {
     final int novaQuantidade;
     final Map<String, dynamic> alteracoes;
     if (palete.setorOrigem == 'conversao') {
-      novaQuantidade = novasCamadas! * ordem.pacotesPorCamada! * ordem.pecasPorPacote!;
-      alteracoes = {'camadas': novasCamadas, 'quantidade_calculada': novaQuantidade};
+      novaQuantidade =
+          novasCamadas! * ordem.pacotesPorCamada! * ordem.pecasPorPacote!;
+      alteracoes = {
+        'camadas': novasCamadas,
+        'quantidade_calculada': novaQuantidade,
+      };
     } else {
-      novaQuantidade = ((novaAlturaMm! / ordem.composicaoEspessuraMm) * ordem.qpPadrao).floor();
-      alteracoes = {'altura_medida_mm': novaAlturaMm, 'quantidade_calculada': novaQuantidade};
+      novaQuantidade =
+          ((novaAlturaMm! / ordem.composicaoEspessuraMm) * ordem.qpPadrao)
+              .floor();
+      alteracoes = {
+        'altura_medida_mm': novaAlturaMm,
+        'quantidade_calculada': novaQuantidade,
+      };
     }
     return _client.from('paletes').update(alteracoes).eq('id', palete.id);
   }

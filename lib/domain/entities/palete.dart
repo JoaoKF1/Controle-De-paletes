@@ -57,22 +57,22 @@ class Palete {
   String get numeroExibicao => numeroSequencial?.toString() ?? 'pendente';
 
   factory Palete.fromMap(Map<String, dynamic> map) => Palete(
-        id: map['id'] as String,
-        ordemProducaoId: map['ordem_producao_id'] as String,
-        numeroSequencial: map['numero_sequencial'] as int?,
-        alturaMedidaMm: (map['altura_medida_mm'] as num?)?.toDouble(),
-        camadas: map['camadas'] as int?,
-        quantidadeCalculada: map['quantidade_calculada'] as int,
-        tipoChapa: map['tipo_chapa'] as String,
-        setorOrigem: map['setor_origem'] as String,
-        codigoBarras: map['codigo_barras'] as String?,
-        responsavelId: map['responsavel_id'] as String,
-        dataHora: DateTime.parse(map['data_hora'] as String),
-        quantidadeReprovada: map['quantidade_reprovada'] as int? ?? 0,
-        saldoDisponivel:
-            map['saldo_disponivel'] as int? ?? map['quantidade_calculada'] as int,
-        revisorNome: (map['revisor'] as Map<String, dynamic>?)?['nome'] as String?,
-      );
+    id: map['id'] as String,
+    ordemProducaoId: map['ordem_producao_id'] as String,
+    numeroSequencial: map['numero_sequencial'] as int?,
+    alturaMedidaMm: (map['altura_medida_mm'] as num?)?.toDouble(),
+    camadas: map['camadas'] as int?,
+    quantidadeCalculada: map['quantidade_calculada'] as int,
+    tipoChapa: map['tipo_chapa'] as String,
+    setorOrigem: map['setor_origem'] as String,
+    codigoBarras: map['codigo_barras'] as String?,
+    responsavelId: map['responsavel_id'] as String,
+    dataHora: DateTime.parse(map['data_hora'] as String),
+    quantidadeReprovada: map['quantidade_reprovada'] as int? ?? 0,
+    saldoDisponivel:
+        map['saldo_disponivel'] as int? ?? map['quantidade_calculada'] as int,
+    revisorNome: (map['revisor'] as Map<String, dynamic>?)?['nome'] as String?,
+  );
 }
 
 /// Ordem de produção com os dados de Cliente, Ficha Técnica e Composição
@@ -130,5 +130,6 @@ class OrdemProducaoInfo {
   /// final ('elaborado', vai direto pra Expedição sem Conversão); 802
   /// ainda é intermediário ('semi_elaborado', precisa da Conversão depois).
   /// Não usar pra apontamento da Conversão — lá é sempre 'elaborado'.
-  String get tipoChapaOnduladeira => numeroOp.startsWith('803') ? 'elaborado' : 'semi_elaborado';
+  String get tipoChapaOnduladeira =>
+      numeroOp.startsWith('803') ? 'elaborado' : 'semi_elaborado';
 }

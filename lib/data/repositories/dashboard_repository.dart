@@ -56,7 +56,10 @@ class DashboardRepository {
       final dia = DateTime(dataHora.year, dataHora.month, dataHora.day);
       final setor = linha['setor_origem'] as String;
       final quantidade = linha['quantidade_calculada'] as int;
-      final doDia = totais.putIfAbsent(dia, () => {'onduladeira': 0, 'conversao': 0});
+      final doDia = totais.putIfAbsent(
+        dia,
+        () => {'onduladeira': 0, 'conversao': 0},
+      );
       doDia[setor] = (doDia[setor] ?? 0) + quantidade;
     }
 

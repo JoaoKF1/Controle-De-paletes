@@ -45,7 +45,10 @@ class CadastrosRepository {
   }
 
   Future<List<FichaTecnica>> listarFichasTecnicas() async {
-    final dados = await _client.from('fichas_tecnicas').select().order('codigo_ft');
+    final dados = await _client
+        .from('fichas_tecnicas')
+        .select()
+        .order('codigo_ft');
     return (dados as List).map((e) => FichaTecnica.fromMap(e)).toList();
   }
 
@@ -83,14 +86,22 @@ class CadastrosRepository {
       if (idParaAtualizar == null) {
         await _client.from(tabela).insert(dados).timeout(timeoutRede);
       } else {
-        await _client.from(tabela).update(dados).eq('id', idParaAtualizar).timeout(timeoutRede);
+        await _client
+            .from(tabela)
+            .update(dados)
+            .eq('id', idParaAtualizar)
+            .timeout(timeoutRede);
       }
     } catch (e) {
       if (!falhaDeRede(e)) rethrow;
       await _db.inserirOperacaoPendenteMap(
         id: _uuid.v4(),
-        tipo: idParaAtualizar == null ? '${tabela}_criar' : '${tabela}_atualizar',
-        dados: idParaAtualizar == null ? dados : {...dados, 'id': idParaAtualizar},
+        tipo: idParaAtualizar == null
+            ? '${tabela}_criar'
+            : '${tabela}_atualizar',
+        dados: idParaAtualizar == null
+            ? dados
+            : {...dados, 'id': idParaAtualizar},
       );
     }
   }

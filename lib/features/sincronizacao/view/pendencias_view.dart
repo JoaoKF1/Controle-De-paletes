@@ -5,12 +5,15 @@ import 'package:intl/intl.dart';
 import '../../../data/local/app_database.dart';
 import '../../../data/local/sincronizador.dart';
 
-final _paletesPendentesProvider = StreamProvider.autoDispose<List<LocalPalete>>((ref) {
-  return ref.watch(appDatabaseProvider).observarPaletesPendentes();
-});
-final _operacoesPendentesProvider = StreamProvider.autoDispose<List<PendingOperation>>((ref) {
-  return ref.watch(appDatabaseProvider).observarOperacoesPendentes();
-});
+final _paletesPendentesProvider = StreamProvider.autoDispose<List<LocalPalete>>(
+  (ref) {
+    return ref.watch(appDatabaseProvider).observarPaletesPendentes();
+  },
+);
+final _operacoesPendentesProvider =
+    StreamProvider.autoDispose<List<PendingOperation>>((ref) {
+      return ref.watch(appDatabaseProvider).observarOperacoesPendentes();
+    });
 
 /// Tudo que ainda não sincronizou com o servidor — apontamentos de palete
 /// e a fila genérica (refugo, pedir revisão, cadastros). Atualiza sozinha
@@ -38,14 +41,20 @@ class PendenciasView extends ConsumerWidget {
         children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Text('Apontamentos de palete', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(
+              'Apontamentos de palete',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           paletesAsync.when(
             loading: () => const Padding(
               padding: EdgeInsets.all(16),
               child: Center(child: CircularProgressIndicator()),
             ),
-            error: (erro, _) => Padding(padding: const EdgeInsets.all(16), child: Text('Erro: $erro')),
+            error: (erro, _) => Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Erro: $erro'),
+            ),
             data: (paletes) {
               if (paletes.isEmpty) {
                 return const Padding(
@@ -58,10 +67,14 @@ class PendenciasView extends ConsumerWidget {
                     .map(
                       (p) => ListTile(
                         leading: Icon(
-                          p.erroSincronizacao != null ? Icons.error_outline : Icons.sync,
+                          p.erroSincronizacao != null
+                              ? Icons.error_outline
+                              : Icons.sync,
                           color: Theme.of(context).colorScheme.error,
                         ),
-                        title: Text('${p.setorOrigem} · quantidade ${p.quantidadeCalculada}'),
+                        title: Text(
+                          '${p.setorOrigem} · quantidade ${p.quantidadeCalculada}',
+                        ),
                         subtitle: Text(
                           'Criado às ${DateFormat('dd/MM HH:mm').format(p.dataHora)}'
                           '${p.erroSincronizacao != null ? '\nErro: ${p.erroSincronizacao}' : ''}',
@@ -76,14 +89,20 @@ class PendenciasView extends ConsumerWidget {
           const Divider(height: 32),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: Text('Refugo, ocorrências e cadastros', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: Text(
+              'Refugo, ocorrências e cadastros',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           operacoesAsync.when(
             loading: () => const Padding(
               padding: EdgeInsets.all(16),
               child: Center(child: CircularProgressIndicator()),
             ),
-            error: (erro, _) => Padding(padding: const EdgeInsets.all(16), child: Text('Erro: $erro')),
+            error: (erro, _) => Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Erro: $erro'),
+            ),
             data: (operacoes) {
               if (operacoes.isEmpty) {
                 return const Padding(
