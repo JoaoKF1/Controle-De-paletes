@@ -24,8 +24,15 @@ class LocalOrdens extends Table {
   IntColumn get qpPadrao => integer()();
   TextColumn get clienteNome => text()();
   RealColumn get composicaoEspessuraMm => real()();
+  TextColumn get composicaoCodigo => text().nullable()();
+  // Substituído por comprimentoMm/larguraMm — mantido só pra não quebrar
+  // linhas de cache já gravadas antes da migração; nunca mais é escrito.
+  TextColumn get medidaChapa => text().nullable()();
+  RealColumn get comprimentoMm => real().nullable()();
+  RealColumn get larguraMm => real().nullable()();
   IntColumn get pacotesPorCamada => integer().nullable()();
   IntColumn get pecasPorPacote => integer().nullable()();
+  IntColumn get arranjo => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -48,7 +55,8 @@ class LocalPaletes extends Table {
   TextColumn get setorOrigem => text()();
   TextColumn get responsavelId => text()();
   DateTimeColumn get dataHora => dateTime()();
-  IntColumn get quantidadeReprovada => integer().withDefault(const Constant(0))();
+  IntColumn get quantidadeReprovada =>
+      integer().withDefault(const Constant(0))();
   IntColumn get saldoDisponivel => integer()();
   TextColumn get revisorNome => text().nullable()();
   BoolColumn get sincronizado => boolean().withDefault(const Constant(true))();
@@ -82,29 +90,46 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.paraTeste(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) => m.createAll(),
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.createTable(pendingOperations);
-          }
-        },
-      );
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(pendingOperations);
+      }
+      if (from < 3) {
+        await m.addColumn(localOrdens, localOrdens.composicaoCodigo);
+        await m.addColumn(localOrdens, localOrdens.medidaChapa);
+      }
+      if (from < 4) {
+        await m.addColumn(localOrdens, localOrdens.arranjo);
+      }
+      if (from < 5) {
+        await m.addColumn(localOrdens, localOrdens.comprimentoMm);
+        await m.addColumn(localOrdens, localOrdens.larguraMm);
+      }
+    },
+  );
 
   /// Grava/atualiza as OPs recebidas. Se `podarAusentes`, remove do cache
   /// qualquer OP que não veio nesse lote (ela deixou de estar aberta) —
   /// só quem busca a lista completa (Onduladeira) faz isso; a busca
   /// filtrada da Conversão só complementa, nunca poda.
-  Future<void> upsertOrdens(List<LocalOrdensCompanion> linhas, {bool podarAusentes = false}) async {
+  Future<void> upsertOrdens(
+    List<LocalOrdensCompanion> linhas, {
+    bool podarAusentes = false,
+  }) async {
     await transaction(() async {
       if (podarAusentes) {
         final idsAtuais = linhas.map((l) => l.id.value).toSet();
-        await (delete(
-          localOrdens,
-        )..where((t) => idsAtuais.isEmpty ? const Constant(true) : t.id.isNotIn(idsAtuais))).go();
+        await (delete(localOrdens)..where(
+              (t) => idsAtuais.isEmpty
+                  ? const Constant(true)
+                  : t.id.isNotIn(idsAtuais),
+            ))
+            .go();
       }
       for (final linha in linhas) {
         await into(localOrdens).insertOnConflictUpdate(linha);
@@ -114,10 +139,14 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<LocalOrden>> listarOrdensCache() => select(localOrdens).get();
 
-  Future<void> upsertPaletesSincronizados(String ordemId, List<LocalPaletesCompanion> linhas) async {
+  Future<void> upsertPaletesSincronizados(
+    String ordemId,
+    List<LocalPaletesCompanion> linhas,
+  ) async {
     await transaction(() async {
       await (delete(localPaletes)..where(
-            (t) => t.ordemProducaoId.equals(ordemId) & t.sincronizado.equals(true),
+            (t) =>
+                t.ordemProducaoId.equals(ordemId) & t.sincronizado.equals(true),
           ))
           .go();
       for (final linha in linhas) {
@@ -137,7 +166,9 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<List<LocalPalete>> listarPendentes() {
-    return (select(localPaletes)..where((t) => t.sincronizado.equals(false))).get();
+    return (select(
+      localPaletes,
+    )..where((t) => t.sincronizado.equals(false))).get();
   }
 
   Future<void> removerPalete(String id) {
@@ -145,14 +176,23 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> marcarErroSincronizacao(String id, String? erro) {
-    return (update(
-      localPaletes,
-    )..where((t) => t.id.equals(id))).write(LocalPaletesCompanion(erroSincronizacao: Value(erro)));
+    return (update(localPaletes)..where((t) => t.id.equals(id))).write(
+      LocalPaletesCompanion(erroSincronizacao: Value(erro)),
+    );
   }
 
-  Future<void> inserirOperacaoPendente({required String id, required String tipo, required String payload}) {
+  Future<void> inserirOperacaoPendente({
+    required String id,
+    required String tipo,
+    required String payload,
+  }) {
     return into(pendingOperations).insert(
-      PendingOperationsCompanion.insert(id: id, tipo: tipo, payload: payload, criadoEm: DateTime.now()),
+      PendingOperationsCompanion.insert(
+        id: id,
+        tipo: tipo,
+        payload: payload,
+        criadoEm: DateTime.now(),
+      ),
     );
   }
 
@@ -163,26 +203,33 @@ class AppDatabase extends _$AppDatabase {
     required String tipo,
     required Map<String, dynamic> dados,
   }) {
-    return inserirOperacaoPendente(id: id, tipo: tipo, payload: jsonEncode(dados));
+    return inserirOperacaoPendente(
+      id: id,
+      tipo: tipo,
+      payload: jsonEncode(dados),
+    );
   }
 
-  Future<List<PendingOperation>> listarOperacoesPendentes() => select(pendingOperations).get();
+  Future<List<PendingOperation>> listarOperacoesPendentes() =>
+      select(pendingOperations).get();
 
   /// Consulta reativa — a tela de Pendências atualiza sozinha conforme a
   /// sincronização vai processando a fila, sem precisar de refresh manual.
-  Stream<List<PendingOperation>> observarOperacoesPendentes() => select(pendingOperations).watch();
+  Stream<List<PendingOperation>> observarOperacoesPendentes() =>
+      select(pendingOperations).watch();
 
-  Stream<List<LocalPalete>> observarPaletesPendentes() =>
-      (select(localPaletes)..where((t) => t.sincronizado.equals(false))).watch();
+  Stream<List<LocalPalete>> observarPaletesPendentes() => (select(
+    localPaletes,
+  )..where((t) => t.sincronizado.equals(false))).watch();
 
   Future<void> removerOperacaoPendente(String id) {
     return (delete(pendingOperations)..where((t) => t.id.equals(id))).go();
   }
 
   Future<void> marcarErroOperacao(String id, String? erro) {
-    return (update(
-      pendingOperations,
-    )..where((t) => t.id.equals(id))).write(PendingOperationsCompanion(erro: Value(erro)));
+    return (update(pendingOperations)..where((t) => t.id.equals(id))).write(
+      PendingOperationsCompanion(erro: Value(erro)),
+    );
   }
 }
 

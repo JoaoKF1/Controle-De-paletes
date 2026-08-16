@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../domain/entities/ficha_tecnica.dart';
 import '../../../domain/entities/ordem_producao.dart';
+import '../../../shared/widgets/apontamento_kit.dart';
 import '../../apontamento/view/busca_op_view.dart';
 
 final _opsProvider = FutureProvider.autoDispose<List<OrdemProducao>>((ref) {
@@ -30,9 +31,9 @@ class OrdensProducaoView extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.search),
             tooltip: 'Buscar OP',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const BuscaOpView()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const BuscaOpView())),
           ),
         ],
       ),
@@ -43,21 +44,23 @@ class OrdensProducaoView extends ConsumerWidget {
           if (ops.isEmpty) {
             return const Center(child: Text('Nenhuma OP cadastrada ainda.'));
           }
-          return ListView.separated(
-            itemCount: ops.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final op = ops[i];
-              return ListTile(
-                title: Text(op.numeroOp),
-                subtitle: Text(
-                  '${op.quantidadePedida} chapas · ${op.status} · '
-                  '${op.dataPedido.day.toString().padLeft(2, '0')}/'
-                  '${op.dataPedido.month.toString().padLeft(2, '0')}/'
-                  '${op.dataPedido.year}',
-                ),
-              );
-            },
+          return LarguraFormulario(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: ops.length,
+              itemBuilder: (context, i) {
+                final op = ops[i];
+                return CartaoLista(
+                  title: Text(op.numeroOp),
+                  subtitle: Text(
+                    '${op.quantidadePedida} ${op.unidadePedido} · ${op.status} · '
+                    '${op.dataPedido.day.toString().padLeft(2, '0')}/'
+                    '${op.dataPedido.month.toString().padLeft(2, '0')}/'
+                    '${op.dataPedido.year}',
+                  ),
+                );
+              },
+            ),
           );
         },
       ),
@@ -88,78 +91,59 @@ class OrdensProducaoView extends ConsumerWidget {
     final numeroOpController = TextEditingController();
     final quantidadeController = TextEditingController();
     String fichaIdSelecionada = fichas.first.id;
-    DateTime dataPedido = DateTime.now();
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
           title: const Text('Nova Ordem de Produção'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: numeroOpController,
-                    decoration: const InputDecoration(
-                      labelText: 'Número da OP',
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CampoRotulado(
+                      rotulo: 'Número da OP',
+                      controller: numeroOpController,
+                      hint: 'Ex: 802000272-1',
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Obrigatório'
+                          : null,
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-                  ),
-                  DropdownButtonFormField<String>(
-                    initialValue: fichaIdSelecionada,
-                    decoration: const InputDecoration(
-                      labelText: 'Ficha Técnica',
+                    const SizedBox(height: 12),
+                    DropdownRotulado(
+                      rotulo: 'Ficha Técnica',
+                      valor: fichaIdSelecionada,
+                      itens: fichas
+                          .map(
+                            (f) => DropdownMenuItem(
+                              value: f.id,
+                              child: Text(f.codigoFt),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => fichaIdSelecionada = v!),
                     ),
-                    items: fichas
-                        .map(
-                          (f) => DropdownMenuItem(
-                            value: f.id,
-                            child: Text(f.codigoFt),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => fichaIdSelecionada = v!),
-                  ),
-                  TextFormField(
-                    controller: quantidadeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Quantidade pedida',
+                    const SizedBox(height: 12),
+                    CampoRotulado(
+                      rotulo: 'Quantidade pedida',
+                      controller: quantidadeController,
+                      hint: 'Total do pedido do cliente',
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        final n = int.tryParse(v ?? '');
+                        if (n == null || n <= 0) {
+                          return 'Informe um número maior que zero';
+                        }
+                        return null;
+                      },
                     ),
-                    keyboardType: TextInputType.number,
-                    validator: (v) {
-                      final n = int.tryParse(v ?? '');
-                      if (n == null || n <= 0) {
-                        return 'Informe um número maior que zero';
-                      }
-                      return null;
-                    },
-                  ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Data do pedido'),
-                    subtitle: Text(
-                      '${dataPedido.day.toString().padLeft(2, '0')}/'
-                      '${dataPedido.month.toString().padLeft(2, '0')}/'
-                      '${dataPedido.year}',
-                    ),
-                    trailing: const Icon(Icons.calendar_today),
-                    onTap: () async {
-                      final escolhida = await showDatePicker(
-                        context: dialogContext,
-                        initialDate: dataPedido,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now(),
-                      );
-                      if (escolhida != null) {
-                        setState(() => dataPedido = escolhida);
-                      }
-                    },
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -176,7 +160,7 @@ class OrdensProducaoView extends ConsumerWidget {
                   numeroOp: numeroOpController.text.trim(),
                   fichaTecnicaId: fichaIdSelecionada,
                   quantidadePedida: int.parse(quantidadeController.text),
-                  dataPedido: dataPedido,
+                  dataPedido: DateTime.now(),
                   status: 'aberta',
                 );
                 await ref

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../domain/entities/cliente.dart';
+import '../../../shared/widgets/apontamento_kit.dart';
 
 final _clientesProvider = FutureProvider.autoDispose<List<Cliente>>((ref) {
   return ref.watch(cadastrosRepositoryProvider).listarClientes();
@@ -26,16 +27,18 @@ class ClientesView extends ConsumerWidget {
               child: Text('Nenhum cliente cadastrado ainda.'),
             );
           }
-          return ListView.separated(
-            itemCount: clientes.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final c = clientes[i];
-              return ListTile(
-                title: Text(c.razaoSocial),
-                subtitle: Text('${c.cidade} - ${c.uf}'),
-              );
-            },
+          return LarguraFormulario(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: clientes.length,
+              itemBuilder: (context, i) {
+                final c = clientes[i];
+                return CartaoLista(
+                  title: Text(c.razaoSocial),
+                  subtitle: Text('${c.cidade} - ${c.uf}'),
+                );
+              },
+            ),
           );
         },
       ),
@@ -56,32 +59,38 @@ class ClientesView extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Novo cliente'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: razaoSocialController,
-                decoration: const InputDecoration(labelText: 'Razão social'),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-              ),
-              TextFormField(
-                controller: cidadeController,
-                decoration: const InputDecoration(labelText: 'Cidade'),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-              ),
-              TextFormField(
-                controller: ufController,
-                decoration: const InputDecoration(labelText: 'UF'),
-                maxLength: 2,
-                textCapitalization: TextCapitalization.characters,
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-              ),
-            ],
+        content: SizedBox(
+          width: 380,
+          child: Form(
+            key: formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CampoRotulado(
+                  rotulo: 'Razão social',
+                  controller: razaoSocialController,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                ),
+                const SizedBox(height: 12),
+                CampoRotulado(
+                  rotulo: 'Cidade',
+                  controller: cidadeController,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                ),
+                const SizedBox(height: 12),
+                CampoRotulado(
+                  rotulo: 'UF',
+                  controller: ufController,
+                  maxLength: 2,
+                  textCapitalization: TextCapitalization.characters,
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                ),
+              ],
+            ),
           ),
         ),
         actions: [

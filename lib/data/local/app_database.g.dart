@@ -104,6 +104,50 @@ class $LocalOrdensTable extends LocalOrdens
         type: DriftSqlType.double,
         requiredDuringInsert: true,
       );
+  static const VerificationMeta _composicaoCodigoMeta = const VerificationMeta(
+    'composicaoCodigo',
+  );
+  @override
+  late final GeneratedColumn<String> composicaoCodigo = GeneratedColumn<String>(
+    'composicao_codigo',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _medidaChapaMeta = const VerificationMeta(
+    'medidaChapa',
+  );
+  @override
+  late final GeneratedColumn<String> medidaChapa = GeneratedColumn<String>(
+    'medida_chapa',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _comprimentoMmMeta = const VerificationMeta(
+    'comprimentoMm',
+  );
+  @override
+  late final GeneratedColumn<double> comprimentoMm = GeneratedColumn<double>(
+    'comprimento_mm',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _larguraMmMeta = const VerificationMeta(
+    'larguraMm',
+  );
+  @override
+  late final GeneratedColumn<double> larguraMm = GeneratedColumn<double>(
+    'largura_mm',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _pacotesPorCamadaMeta = const VerificationMeta(
     'pacotesPorCamada',
   );
@@ -126,6 +170,17 @@ class $LocalOrdensTable extends LocalOrdens
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _arranjoMeta = const VerificationMeta(
+    'arranjo',
+  );
+  @override
+  late final GeneratedColumn<int> arranjo = GeneratedColumn<int>(
+    'arranjo',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -137,8 +192,13 @@ class $LocalOrdensTable extends LocalOrdens
     qpPadrao,
     clienteNome,
     composicaoEspessuraMm,
+    composicaoCodigo,
+    medidaChapa,
+    comprimentoMm,
+    larguraMm,
     pacotesPorCamada,
     pecasPorPacote,
+    arranjo,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -230,6 +290,39 @@ class $LocalOrdensTable extends LocalOrdens
     } else if (isInserting) {
       context.missing(_composicaoEspessuraMmMeta);
     }
+    if (data.containsKey('composicao_codigo')) {
+      context.handle(
+        _composicaoCodigoMeta,
+        composicaoCodigo.isAcceptableOrUnknown(
+          data['composicao_codigo']!,
+          _composicaoCodigoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('medida_chapa')) {
+      context.handle(
+        _medidaChapaMeta,
+        medidaChapa.isAcceptableOrUnknown(
+          data['medida_chapa']!,
+          _medidaChapaMeta,
+        ),
+      );
+    }
+    if (data.containsKey('comprimento_mm')) {
+      context.handle(
+        _comprimentoMmMeta,
+        comprimentoMm.isAcceptableOrUnknown(
+          data['comprimento_mm']!,
+          _comprimentoMmMeta,
+        ),
+      );
+    }
+    if (data.containsKey('largura_mm')) {
+      context.handle(
+        _larguraMmMeta,
+        larguraMm.isAcceptableOrUnknown(data['largura_mm']!, _larguraMmMeta),
+      );
+    }
     if (data.containsKey('pacotes_por_camada')) {
       context.handle(
         _pacotesPorCamadaMeta,
@@ -246,6 +339,12 @@ class $LocalOrdensTable extends LocalOrdens
           data['pecas_por_pacote']!,
           _pecasPorPacoteMeta,
         ),
+      );
+    }
+    if (data.containsKey('arranjo')) {
+      context.handle(
+        _arranjoMeta,
+        arranjo.isAcceptableOrUnknown(data['arranjo']!, _arranjoMeta),
       );
     }
     return context;
@@ -293,6 +392,22 @@ class $LocalOrdensTable extends LocalOrdens
         DriftSqlType.double,
         data['${effectivePrefix}composicao_espessura_mm'],
       )!,
+      composicaoCodigo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}composicao_codigo'],
+      ),
+      medidaChapa: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}medida_chapa'],
+      ),
+      comprimentoMm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}comprimento_mm'],
+      ),
+      larguraMm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}largura_mm'],
+      ),
       pacotesPorCamada: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}pacotes_por_camada'],
@@ -300,6 +415,10 @@ class $LocalOrdensTable extends LocalOrdens
       pecasPorPacote: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}pecas_por_pacote'],
+      ),
+      arranjo: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}arranjo'],
       ),
     );
   }
@@ -320,8 +439,13 @@ class LocalOrden extends DataClass implements Insertable<LocalOrden> {
   final int qpPadrao;
   final String clienteNome;
   final double composicaoEspessuraMm;
+  final String? composicaoCodigo;
+  final String? medidaChapa;
+  final double? comprimentoMm;
+  final double? larguraMm;
   final int? pacotesPorCamada;
   final int? pecasPorPacote;
+  final int? arranjo;
   const LocalOrden({
     required this.id,
     required this.numeroOp,
@@ -332,8 +456,13 @@ class LocalOrden extends DataClass implements Insertable<LocalOrden> {
     required this.qpPadrao,
     required this.clienteNome,
     required this.composicaoEspessuraMm,
+    this.composicaoCodigo,
+    this.medidaChapa,
+    this.comprimentoMm,
+    this.larguraMm,
     this.pacotesPorCamada,
     this.pecasPorPacote,
+    this.arranjo,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -347,11 +476,26 @@ class LocalOrden extends DataClass implements Insertable<LocalOrden> {
     map['qp_padrao'] = Variable<int>(qpPadrao);
     map['cliente_nome'] = Variable<String>(clienteNome);
     map['composicao_espessura_mm'] = Variable<double>(composicaoEspessuraMm);
+    if (!nullToAbsent || composicaoCodigo != null) {
+      map['composicao_codigo'] = Variable<String>(composicaoCodigo);
+    }
+    if (!nullToAbsent || medidaChapa != null) {
+      map['medida_chapa'] = Variable<String>(medidaChapa);
+    }
+    if (!nullToAbsent || comprimentoMm != null) {
+      map['comprimento_mm'] = Variable<double>(comprimentoMm);
+    }
+    if (!nullToAbsent || larguraMm != null) {
+      map['largura_mm'] = Variable<double>(larguraMm);
+    }
     if (!nullToAbsent || pacotesPorCamada != null) {
       map['pacotes_por_camada'] = Variable<int>(pacotesPorCamada);
     }
     if (!nullToAbsent || pecasPorPacote != null) {
       map['pecas_por_pacote'] = Variable<int>(pecasPorPacote);
+    }
+    if (!nullToAbsent || arranjo != null) {
+      map['arranjo'] = Variable<int>(arranjo);
     }
     return map;
   }
@@ -367,12 +511,27 @@ class LocalOrden extends DataClass implements Insertable<LocalOrden> {
       qpPadrao: Value(qpPadrao),
       clienteNome: Value(clienteNome),
       composicaoEspessuraMm: Value(composicaoEspessuraMm),
+      composicaoCodigo: composicaoCodigo == null && nullToAbsent
+          ? const Value.absent()
+          : Value(composicaoCodigo),
+      medidaChapa: medidaChapa == null && nullToAbsent
+          ? const Value.absent()
+          : Value(medidaChapa),
+      comprimentoMm: comprimentoMm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(comprimentoMm),
+      larguraMm: larguraMm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(larguraMm),
       pacotesPorCamada: pacotesPorCamada == null && nullToAbsent
           ? const Value.absent()
           : Value(pacotesPorCamada),
       pecasPorPacote: pecasPorPacote == null && nullToAbsent
           ? const Value.absent()
           : Value(pecasPorPacote),
+      arranjo: arranjo == null && nullToAbsent
+          ? const Value.absent()
+          : Value(arranjo),
     );
   }
 
@@ -393,8 +552,13 @@ class LocalOrden extends DataClass implements Insertable<LocalOrden> {
       composicaoEspessuraMm: serializer.fromJson<double>(
         json['composicaoEspessuraMm'],
       ),
+      composicaoCodigo: serializer.fromJson<String?>(json['composicaoCodigo']),
+      medidaChapa: serializer.fromJson<String?>(json['medidaChapa']),
+      comprimentoMm: serializer.fromJson<double?>(json['comprimentoMm']),
+      larguraMm: serializer.fromJson<double?>(json['larguraMm']),
       pacotesPorCamada: serializer.fromJson<int?>(json['pacotesPorCamada']),
       pecasPorPacote: serializer.fromJson<int?>(json['pecasPorPacote']),
+      arranjo: serializer.fromJson<int?>(json['arranjo']),
     );
   }
   @override
@@ -410,8 +574,13 @@ class LocalOrden extends DataClass implements Insertable<LocalOrden> {
       'qpPadrao': serializer.toJson<int>(qpPadrao),
       'clienteNome': serializer.toJson<String>(clienteNome),
       'composicaoEspessuraMm': serializer.toJson<double>(composicaoEspessuraMm),
+      'composicaoCodigo': serializer.toJson<String?>(composicaoCodigo),
+      'medidaChapa': serializer.toJson<String?>(medidaChapa),
+      'comprimentoMm': serializer.toJson<double?>(comprimentoMm),
+      'larguraMm': serializer.toJson<double?>(larguraMm),
       'pacotesPorCamada': serializer.toJson<int?>(pacotesPorCamada),
       'pecasPorPacote': serializer.toJson<int?>(pecasPorPacote),
+      'arranjo': serializer.toJson<int?>(arranjo),
     };
   }
 
@@ -425,8 +594,13 @@ class LocalOrden extends DataClass implements Insertable<LocalOrden> {
     int? qpPadrao,
     String? clienteNome,
     double? composicaoEspessuraMm,
+    Value<String?> composicaoCodigo = const Value.absent(),
+    Value<String?> medidaChapa = const Value.absent(),
+    Value<double?> comprimentoMm = const Value.absent(),
+    Value<double?> larguraMm = const Value.absent(),
     Value<int?> pacotesPorCamada = const Value.absent(),
     Value<int?> pecasPorPacote = const Value.absent(),
+    Value<int?> arranjo = const Value.absent(),
   }) => LocalOrden(
     id: id ?? this.id,
     numeroOp: numeroOp ?? this.numeroOp,
@@ -437,12 +611,21 @@ class LocalOrden extends DataClass implements Insertable<LocalOrden> {
     qpPadrao: qpPadrao ?? this.qpPadrao,
     clienteNome: clienteNome ?? this.clienteNome,
     composicaoEspessuraMm: composicaoEspessuraMm ?? this.composicaoEspessuraMm,
+    composicaoCodigo: composicaoCodigo.present
+        ? composicaoCodigo.value
+        : this.composicaoCodigo,
+    medidaChapa: medidaChapa.present ? medidaChapa.value : this.medidaChapa,
+    comprimentoMm: comprimentoMm.present
+        ? comprimentoMm.value
+        : this.comprimentoMm,
+    larguraMm: larguraMm.present ? larguraMm.value : this.larguraMm,
     pacotesPorCamada: pacotesPorCamada.present
         ? pacotesPorCamada.value
         : this.pacotesPorCamada,
     pecasPorPacote: pecasPorPacote.present
         ? pecasPorPacote.value
         : this.pecasPorPacote,
+    arranjo: arranjo.present ? arranjo.value : this.arranjo,
   );
   LocalOrden copyWithCompanion(LocalOrdensCompanion data) {
     return LocalOrden(
@@ -463,12 +646,23 @@ class LocalOrden extends DataClass implements Insertable<LocalOrden> {
       composicaoEspessuraMm: data.composicaoEspessuraMm.present
           ? data.composicaoEspessuraMm.value
           : this.composicaoEspessuraMm,
+      composicaoCodigo: data.composicaoCodigo.present
+          ? data.composicaoCodigo.value
+          : this.composicaoCodigo,
+      medidaChapa: data.medidaChapa.present
+          ? data.medidaChapa.value
+          : this.medidaChapa,
+      comprimentoMm: data.comprimentoMm.present
+          ? data.comprimentoMm.value
+          : this.comprimentoMm,
+      larguraMm: data.larguraMm.present ? data.larguraMm.value : this.larguraMm,
       pacotesPorCamada: data.pacotesPorCamada.present
           ? data.pacotesPorCamada.value
           : this.pacotesPorCamada,
       pecasPorPacote: data.pecasPorPacote.present
           ? data.pecasPorPacote.value
           : this.pecasPorPacote,
+      arranjo: data.arranjo.present ? data.arranjo.value : this.arranjo,
     );
   }
 
@@ -484,8 +678,13 @@ class LocalOrden extends DataClass implements Insertable<LocalOrden> {
           ..write('qpPadrao: $qpPadrao, ')
           ..write('clienteNome: $clienteNome, ')
           ..write('composicaoEspessuraMm: $composicaoEspessuraMm, ')
+          ..write('composicaoCodigo: $composicaoCodigo, ')
+          ..write('medidaChapa: $medidaChapa, ')
+          ..write('comprimentoMm: $comprimentoMm, ')
+          ..write('larguraMm: $larguraMm, ')
           ..write('pacotesPorCamada: $pacotesPorCamada, ')
-          ..write('pecasPorPacote: $pecasPorPacote')
+          ..write('pecasPorPacote: $pecasPorPacote, ')
+          ..write('arranjo: $arranjo')
           ..write(')'))
         .toString();
   }
@@ -501,8 +700,13 @@ class LocalOrden extends DataClass implements Insertable<LocalOrden> {
     qpPadrao,
     clienteNome,
     composicaoEspessuraMm,
+    composicaoCodigo,
+    medidaChapa,
+    comprimentoMm,
+    larguraMm,
     pacotesPorCamada,
     pecasPorPacote,
+    arranjo,
   );
   @override
   bool operator ==(Object other) =>
@@ -517,8 +721,13 @@ class LocalOrden extends DataClass implements Insertable<LocalOrden> {
           other.qpPadrao == this.qpPadrao &&
           other.clienteNome == this.clienteNome &&
           other.composicaoEspessuraMm == this.composicaoEspessuraMm &&
+          other.composicaoCodigo == this.composicaoCodigo &&
+          other.medidaChapa == this.medidaChapa &&
+          other.comprimentoMm == this.comprimentoMm &&
+          other.larguraMm == this.larguraMm &&
           other.pacotesPorCamada == this.pacotesPorCamada &&
-          other.pecasPorPacote == this.pecasPorPacote);
+          other.pecasPorPacote == this.pecasPorPacote &&
+          other.arranjo == this.arranjo);
 }
 
 class LocalOrdensCompanion extends UpdateCompanion<LocalOrden> {
@@ -531,8 +740,13 @@ class LocalOrdensCompanion extends UpdateCompanion<LocalOrden> {
   final Value<int> qpPadrao;
   final Value<String> clienteNome;
   final Value<double> composicaoEspessuraMm;
+  final Value<String?> composicaoCodigo;
+  final Value<String?> medidaChapa;
+  final Value<double?> comprimentoMm;
+  final Value<double?> larguraMm;
   final Value<int?> pacotesPorCamada;
   final Value<int?> pecasPorPacote;
+  final Value<int?> arranjo;
   final Value<int> rowid;
   const LocalOrdensCompanion({
     this.id = const Value.absent(),
@@ -544,8 +758,13 @@ class LocalOrdensCompanion extends UpdateCompanion<LocalOrden> {
     this.qpPadrao = const Value.absent(),
     this.clienteNome = const Value.absent(),
     this.composicaoEspessuraMm = const Value.absent(),
+    this.composicaoCodigo = const Value.absent(),
+    this.medidaChapa = const Value.absent(),
+    this.comprimentoMm = const Value.absent(),
+    this.larguraMm = const Value.absent(),
     this.pacotesPorCamada = const Value.absent(),
     this.pecasPorPacote = const Value.absent(),
+    this.arranjo = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalOrdensCompanion.insert({
@@ -558,8 +777,13 @@ class LocalOrdensCompanion extends UpdateCompanion<LocalOrden> {
     required int qpPadrao,
     required String clienteNome,
     required double composicaoEspessuraMm,
+    this.composicaoCodigo = const Value.absent(),
+    this.medidaChapa = const Value.absent(),
+    this.comprimentoMm = const Value.absent(),
+    this.larguraMm = const Value.absent(),
     this.pacotesPorCamada = const Value.absent(),
     this.pecasPorPacote = const Value.absent(),
+    this.arranjo = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        numeroOp = Value(numeroOp),
@@ -580,8 +804,13 @@ class LocalOrdensCompanion extends UpdateCompanion<LocalOrden> {
     Expression<int>? qpPadrao,
     Expression<String>? clienteNome,
     Expression<double>? composicaoEspessuraMm,
+    Expression<String>? composicaoCodigo,
+    Expression<String>? medidaChapa,
+    Expression<double>? comprimentoMm,
+    Expression<double>? larguraMm,
     Expression<int>? pacotesPorCamada,
     Expression<int>? pecasPorPacote,
+    Expression<int>? arranjo,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -595,8 +824,13 @@ class LocalOrdensCompanion extends UpdateCompanion<LocalOrden> {
       if (clienteNome != null) 'cliente_nome': clienteNome,
       if (composicaoEspessuraMm != null)
         'composicao_espessura_mm': composicaoEspessuraMm,
+      if (composicaoCodigo != null) 'composicao_codigo': composicaoCodigo,
+      if (medidaChapa != null) 'medida_chapa': medidaChapa,
+      if (comprimentoMm != null) 'comprimento_mm': comprimentoMm,
+      if (larguraMm != null) 'largura_mm': larguraMm,
       if (pacotesPorCamada != null) 'pacotes_por_camada': pacotesPorCamada,
       if (pecasPorPacote != null) 'pecas_por_pacote': pecasPorPacote,
+      if (arranjo != null) 'arranjo': arranjo,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -611,8 +845,13 @@ class LocalOrdensCompanion extends UpdateCompanion<LocalOrden> {
     Value<int>? qpPadrao,
     Value<String>? clienteNome,
     Value<double>? composicaoEspessuraMm,
+    Value<String?>? composicaoCodigo,
+    Value<String?>? medidaChapa,
+    Value<double?>? comprimentoMm,
+    Value<double?>? larguraMm,
     Value<int?>? pacotesPorCamada,
     Value<int?>? pecasPorPacote,
+    Value<int?>? arranjo,
     Value<int>? rowid,
   }) {
     return LocalOrdensCompanion(
@@ -626,8 +865,13 @@ class LocalOrdensCompanion extends UpdateCompanion<LocalOrden> {
       clienteNome: clienteNome ?? this.clienteNome,
       composicaoEspessuraMm:
           composicaoEspessuraMm ?? this.composicaoEspessuraMm,
+      composicaoCodigo: composicaoCodigo ?? this.composicaoCodigo,
+      medidaChapa: medidaChapa ?? this.medidaChapa,
+      comprimentoMm: comprimentoMm ?? this.comprimentoMm,
+      larguraMm: larguraMm ?? this.larguraMm,
       pacotesPorCamada: pacotesPorCamada ?? this.pacotesPorCamada,
       pecasPorPacote: pecasPorPacote ?? this.pecasPorPacote,
+      arranjo: arranjo ?? this.arranjo,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -664,11 +908,26 @@ class LocalOrdensCompanion extends UpdateCompanion<LocalOrden> {
         composicaoEspessuraMm.value,
       );
     }
+    if (composicaoCodigo.present) {
+      map['composicao_codigo'] = Variable<String>(composicaoCodigo.value);
+    }
+    if (medidaChapa.present) {
+      map['medida_chapa'] = Variable<String>(medidaChapa.value);
+    }
+    if (comprimentoMm.present) {
+      map['comprimento_mm'] = Variable<double>(comprimentoMm.value);
+    }
+    if (larguraMm.present) {
+      map['largura_mm'] = Variable<double>(larguraMm.value);
+    }
     if (pacotesPorCamada.present) {
       map['pacotes_por_camada'] = Variable<int>(pacotesPorCamada.value);
     }
     if (pecasPorPacote.present) {
       map['pecas_por_pacote'] = Variable<int>(pecasPorPacote.value);
+    }
+    if (arranjo.present) {
+      map['arranjo'] = Variable<int>(arranjo.value);
     }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
@@ -688,8 +947,13 @@ class LocalOrdensCompanion extends UpdateCompanion<LocalOrden> {
           ..write('qpPadrao: $qpPadrao, ')
           ..write('clienteNome: $clienteNome, ')
           ..write('composicaoEspessuraMm: $composicaoEspessuraMm, ')
+          ..write('composicaoCodigo: $composicaoCodigo, ')
+          ..write('medidaChapa: $medidaChapa, ')
+          ..write('comprimentoMm: $comprimentoMm, ')
+          ..write('larguraMm: $larguraMm, ')
           ..write('pacotesPorCamada: $pacotesPorCamada, ')
           ..write('pecasPorPacote: $pecasPorPacote, ')
+          ..write('arranjo: $arranjo, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1997,8 +2261,13 @@ typedef $$LocalOrdensTableCreateCompanionBuilder =
       required int qpPadrao,
       required String clienteNome,
       required double composicaoEspessuraMm,
+      Value<String?> composicaoCodigo,
+      Value<String?> medidaChapa,
+      Value<double?> comprimentoMm,
+      Value<double?> larguraMm,
       Value<int?> pacotesPorCamada,
       Value<int?> pecasPorPacote,
+      Value<int?> arranjo,
       Value<int> rowid,
     });
 typedef $$LocalOrdensTableUpdateCompanionBuilder =
@@ -2012,8 +2281,13 @@ typedef $$LocalOrdensTableUpdateCompanionBuilder =
       Value<int> qpPadrao,
       Value<String> clienteNome,
       Value<double> composicaoEspessuraMm,
+      Value<String?> composicaoCodigo,
+      Value<String?> medidaChapa,
+      Value<double?> comprimentoMm,
+      Value<double?> larguraMm,
       Value<int?> pacotesPorCamada,
       Value<int?> pecasPorPacote,
+      Value<int?> arranjo,
       Value<int> rowid,
     });
 
@@ -2071,6 +2345,26 @@ class $$LocalOrdensTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get composicaoCodigo => $composableBuilder(
+    column: $table.composicaoCodigo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get medidaChapa => $composableBuilder(
+    column: $table.medidaChapa,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get comprimentoMm => $composableBuilder(
+    column: $table.comprimentoMm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get larguraMm => $composableBuilder(
+    column: $table.larguraMm,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get pacotesPorCamada => $composableBuilder(
     column: $table.pacotesPorCamada,
     builder: (column) => ColumnFilters(column),
@@ -2078,6 +2372,11 @@ class $$LocalOrdensTableFilterComposer
 
   ColumnFilters<int> get pecasPorPacote => $composableBuilder(
     column: $table.pecasPorPacote,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get arranjo => $composableBuilder(
+    column: $table.arranjo,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2136,6 +2435,26 @@ class $$LocalOrdensTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get composicaoCodigo => $composableBuilder(
+    column: $table.composicaoCodigo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get medidaChapa => $composableBuilder(
+    column: $table.medidaChapa,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get comprimentoMm => $composableBuilder(
+    column: $table.comprimentoMm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get larguraMm => $composableBuilder(
+    column: $table.larguraMm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get pacotesPorCamada => $composableBuilder(
     column: $table.pacotesPorCamada,
     builder: (column) => ColumnOrderings(column),
@@ -2143,6 +2462,11 @@ class $$LocalOrdensTableOrderingComposer
 
   ColumnOrderings<int> get pecasPorPacote => $composableBuilder(
     column: $table.pecasPorPacote,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get arranjo => $composableBuilder(
+    column: $table.arranjo,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -2191,6 +2515,24 @@ class $$LocalOrdensTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get composicaoCodigo => $composableBuilder(
+    column: $table.composicaoCodigo,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get medidaChapa => $composableBuilder(
+    column: $table.medidaChapa,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get comprimentoMm => $composableBuilder(
+    column: $table.comprimentoMm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get larguraMm =>
+      $composableBuilder(column: $table.larguraMm, builder: (column) => column);
+
   GeneratedColumn<int> get pacotesPorCamada => $composableBuilder(
     column: $table.pacotesPorCamada,
     builder: (column) => column,
@@ -2200,6 +2542,9 @@ class $$LocalOrdensTableAnnotationComposer
     column: $table.pecasPorPacote,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get arranjo =>
+      $composableBuilder(column: $table.arranjo, builder: (column) => column);
 }
 
 class $$LocalOrdensTableTableManager
@@ -2242,8 +2587,13 @@ class $$LocalOrdensTableTableManager
                 Value<int> qpPadrao = const Value.absent(),
                 Value<String> clienteNome = const Value.absent(),
                 Value<double> composicaoEspessuraMm = const Value.absent(),
+                Value<String?> composicaoCodigo = const Value.absent(),
+                Value<String?> medidaChapa = const Value.absent(),
+                Value<double?> comprimentoMm = const Value.absent(),
+                Value<double?> larguraMm = const Value.absent(),
                 Value<int?> pacotesPorCamada = const Value.absent(),
                 Value<int?> pecasPorPacote = const Value.absent(),
+                Value<int?> arranjo = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalOrdensCompanion(
                 id: id,
@@ -2255,8 +2605,13 @@ class $$LocalOrdensTableTableManager
                 qpPadrao: qpPadrao,
                 clienteNome: clienteNome,
                 composicaoEspessuraMm: composicaoEspessuraMm,
+                composicaoCodigo: composicaoCodigo,
+                medidaChapa: medidaChapa,
+                comprimentoMm: comprimentoMm,
+                larguraMm: larguraMm,
                 pacotesPorCamada: pacotesPorCamada,
                 pecasPorPacote: pecasPorPacote,
+                arranjo: arranjo,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2270,8 +2625,13 @@ class $$LocalOrdensTableTableManager
                 required int qpPadrao,
                 required String clienteNome,
                 required double composicaoEspessuraMm,
+                Value<String?> composicaoCodigo = const Value.absent(),
+                Value<String?> medidaChapa = const Value.absent(),
+                Value<double?> comprimentoMm = const Value.absent(),
+                Value<double?> larguraMm = const Value.absent(),
                 Value<int?> pacotesPorCamada = const Value.absent(),
                 Value<int?> pecasPorPacote = const Value.absent(),
+                Value<int?> arranjo = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalOrdensCompanion.insert(
                 id: id,
@@ -2283,8 +2643,13 @@ class $$LocalOrdensTableTableManager
                 qpPadrao: qpPadrao,
                 clienteNome: clienteNome,
                 composicaoEspessuraMm: composicaoEspessuraMm,
+                composicaoCodigo: composicaoCodigo,
+                medidaChapa: medidaChapa,
+                comprimentoMm: comprimentoMm,
+                larguraMm: larguraMm,
                 pacotesPorCamada: pacotesPorCamada,
                 pecasPorPacote: pecasPorPacote,
+                arranjo: arranjo,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

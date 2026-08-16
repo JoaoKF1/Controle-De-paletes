@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/config/app_config.dart';
 import 'core/router/auth_gate.dart';
+import 'core/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +27,9 @@ class ControlePaletesApp extends StatelessWidget {
     return MaterialApp(
       title: 'Controle de Paletes',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: Colors.blue, useMaterial3: true),
+      theme: construirTema(Brightness.light),
+      darkTheme: construirTema(Brightness.dark),
+      themeMode: ThemeMode.system,
       home: const AuthGate(),
     );
   }

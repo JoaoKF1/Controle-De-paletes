@@ -10,13 +10,13 @@ class Composicao {
   });
 
   factory Composicao.fromMap(Map<String, dynamic> map) => Composicao(
-        id: map['id'] as String,
-        codigo: map['codigo'] as String,
-        espessuraMm: (map['espessura_mm'] as num).toDouble(),
-      );
+    id: map['id'] as String,
+    codigo: map['codigo'] as String,
+    espessuraMm: (map['espessura_mm'] as num).toDouble(),
+  );
 
   Map<String, dynamic> toInsertMap() => {
-        'codigo': codigo,
-        'espessura_mm': espessuraMm,
-      };
+    'codigo': codigo,
+    'espessura_mm': espessuraMm,
+  };
 }

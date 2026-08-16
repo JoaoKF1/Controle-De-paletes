@@ -9,12 +9,14 @@ import '../local/rede.dart';
 import '../remote/supabase_provider.dart';
 
 const _camposFichaTecnica =
-    'codigo_ft, qp_padrao, pacotes_por_camada, pecas_por_pacote, '
-    'clientes(razao_social), composicoes(espessura_mm)';
+    'codigo_ft, qp_padrao, comprimento_mm, largura_mm, pacotes_por_camada, pecas_por_pacote, arranjo, '
+    'clientes(razao_social), composicoes(codigo, espessura_mm)';
 const _selectComJoins = '*, fichas_tecnicas($_camposFichaTecnica)';
-const _selectComJoinsFiltradoPorFt = '*, fichas_tecnicas!inner($_camposFichaTecnica)';
+const _selectComJoinsFiltradoPorFt =
+    '*, fichas_tecnicas!inner($_camposFichaTecnica)';
 
-const _selectPaleteComRevisor = '*, revisor:profiles!paletes_revisado_por_fkey(nome)';
+const _selectPaleteComRevisor =
+    '*, revisor:profiles!paletes_revisado_por_fkey(nome)';
 
 const _uuid = Uuid();
 
@@ -35,13 +37,56 @@ class PaletesRepository {
           .eq('status', 'aberta')
           .order('data_pedido')
           .timeout(timeoutRede);
-      final ordens = (dados as List).map((e) => OrdemProducaoInfo.fromMap(e)).toList();
-      await _db.upsertOrdens(ordens.map(_paraLocalOrdem).toList(), podarAusentes: true);
-      return ordens;
+      final ordens = (dados as List)
+          .map((e) => OrdemProducaoInfo.fromMap(e))
+          .toList();
+      await _db.upsertOrdens(
+        ordens.map(_paraLocalOrdem).toList(),
+        podarAusentes: true,
+      );
+      return await _comProgressoOnduladeira(ordens);
     } catch (e) {
       if (!falhaDeRede(e)) rethrow;
       final cache = await _db.listarOrdensCache();
       return cache.map(_deLocalOrdem).toList();
+    }
+  }
+
+  /// Soma `quantidade_calculada` só dos paletes da Onduladeira em cada OP
+  /// (chapas — nunca as caixas da Conversão, que são outra unidade) contra
+  /// o alvo em chapas da OP (`alvoChapasOnduladeira`, já ajustado pelo
+  /// arranjo — ver plano técnico 9.1). Uma query só pra todas as OPs da
+  /// página (não N+1). Se essa query falhar mas a lista de OPs já tiver
+  /// vindo, devolve a lista sem progresso em vez de derrubar a tela
+  /// inteira pro modo offline.
+  Future<List<OrdemProducaoInfo>> _comProgressoOnduladeira(
+    List<OrdemProducaoInfo> ordens,
+  ) async {
+    if (ordens.isEmpty) return ordens;
+    try {
+      final ids = ordens.map((o) => o.id).toList();
+      final dados = await _client
+          .from('paletes')
+          .select('ordem_producao_id, quantidade_calculada')
+          .inFilter('ordem_producao_id', ids)
+          .eq('setor_origem', 'onduladeira')
+          .timeout(timeoutRede);
+      final somaPorOrdem = <String, int>{};
+      for (final linha in dados as List) {
+        final id = linha['ordem_producao_id'] as String;
+        somaPorOrdem[id] =
+            (somaPorOrdem[id] ?? 0) + (linha['quantidade_calculada'] as int);
+      }
+      return ordens
+          .map(
+            (o) => o.comProgresso(
+              atual: somaPorOrdem[o.id] ?? 0,
+              alvo: o.alvoChapasOnduladeira,
+            ),
+          )
+          .toList();
+    } catch (_) {
+      return ordens;
     }
   }
 
@@ -81,9 +126,11 @@ class PaletesRepository {
           .eq('paletes.setor_origem', 'onduladeira')
           .order('data_pedido')
           .timeout(timeoutRede);
-      final ordens = (dados as List).map((e) => OrdemProducaoInfo.fromMap(e)).toList();
+      final ordens = (dados as List)
+          .map((e) => OrdemProducaoInfo.fromMap(e))
+          .toList();
       await _db.upsertOrdens(ordens.map(_paraLocalOrdem).toList());
-      return ordens;
+      return await _comProgressoConversao(ordens);
     } catch (e) {
       if (!falhaDeRede(e)) rethrow;
       final cache = await _db.listarOrdensCache();
@@ -94,8 +141,58 @@ class PaletesRepository {
     }
   }
 
+  /// Chapas disponíveis (produzidas pela Onduladeira, líquido de refugo de
+  /// qualidade) vs. já consumidas pela Conversão — mesma conta usada no
+  /// cartão de progresso do detalhe da OP, só que numa query só pra todas
+  /// as OPs da lista. Mesma tolerância a falha que `_comProgressoOnduladeira`.
+  Future<List<OrdemProducaoInfo>> _comProgressoConversao(
+    List<OrdemProducaoInfo> ordens,
+  ) async {
+    if (ordens.isEmpty) return ordens;
+    try {
+      final ids = ordens.map((o) => o.id).toList();
+      final dados = await _client
+          .from('paletes')
+          .select(
+            'ordem_producao_id, setor_origem, quantidade_calculada, saldo_disponivel',
+          )
+          .inFilter('ordem_producao_id', ids)
+          .timeout(timeoutRede);
+      final totalPorOrdem = <String, int>{};
+      final consumidoPorOrdem = <String, int>{};
+      for (final linha in dados as List) {
+        final id = linha['ordem_producao_id'] as String;
+        if (linha['setor_origem'] == 'onduladeira') {
+          totalPorOrdem[id] =
+              (totalPorOrdem[id] ?? 0) + (linha['saldo_disponivel'] as int);
+        } else if (linha['setor_origem'] == 'conversao') {
+          consumidoPorOrdem[id] =
+              (consumidoPorOrdem[id] ?? 0) +
+              (linha['quantidade_calculada'] as int);
+        }
+      }
+      return ordens
+          .map(
+            (o) => o.comProgresso(
+              // Arranjo (caixas por chapa) converte as caixas apontadas de
+              // volta em chapas consumidas — ver mesmo ajuste no detalhe
+              // da OP, plano técnico 9.1.
+              atual: ((consumidoPorOrdem[o.id] ?? 0) / o.arranjoEfetivo).ceil(),
+              alvo: totalPorOrdem[o.id] ?? 0,
+            ),
+          )
+          .toList();
+    } catch (_) {
+      return ordens;
+    }
+  }
+
   Future<Palete> buscarPaletePorId(String id) async {
-    final dados = await _client.from('paletes').select(_selectPaleteComRevisor).eq('id', id).single();
+    final dados = await _client
+        .from('paletes')
+        .select(_selectPaleteComRevisor)
+        .eq('id', id)
+        .single();
     return Palete.fromMap(dados);
   }
 
@@ -108,10 +205,13 @@ class PaletesRepository {
           .order('numero_sequencial')
           .timeout(timeoutRede);
       final paletes = (dados as List).map((e) => Palete.fromMap(e)).toList();
-      await _db.upsertPaletesSincronizados(ordemProducaoId, paletes.map(_paraLocalPalete).toList());
-      final pendentes = (await _db.listarPaletesCache(ordemProducaoId))
-          .where((p) => !p.sincronizado)
-          .map(_deLocalPalete);
+      await _db.upsertPaletesSincronizados(
+        ordemProducaoId,
+        paletes.map(_paraLocalPalete).toList(),
+      );
+      final pendentes = (await _db.listarPaletesCache(
+        ordemProducaoId,
+      )).where((p) => !p.sincronizado).map(_deLocalPalete);
       return [...paletes, ...pendentes];
     } catch (e) {
       if (!falhaDeRede(e)) rethrow;
@@ -157,7 +257,8 @@ class PaletesRepository {
       alturaMedidaMm: alturaMedidaMm,
       camadas: camadas,
     );
-    final tipoChapa = setorOrigem == 'conversao' || ordem.numeroOp.startsWith('803')
+    final tipoChapa =
+        setorOrigem == 'conversao' || ordem.numeroOp.startsWith('803')
         ? 'elaborado'
         : 'semi_elaborado';
 
@@ -172,16 +273,19 @@ class PaletesRepository {
           .timeout(timeoutRede);
       final proximoNumero = (ultimo?['numero_sequencial'] as int? ?? 0) + 1;
 
-      await _client.from('paletes').insert({
-        'ordem_producao_id': ordem.id,
-        'numero_sequencial': proximoNumero,
-        'altura_medida_mm': alturaMedidaMm,
-        'camadas': camadas,
-        'quantidade_calculada': quantidadeCalculada,
-        'tipo_chapa': tipoChapa,
-        'setor_origem': setorOrigem,
-        'responsavel_id': responsavelId,
-      }).timeout(timeoutRede);
+      await _client
+          .from('paletes')
+          .insert({
+            'ordem_producao_id': ordem.id,
+            'numero_sequencial': proximoNumero,
+            'altura_medida_mm': alturaMedidaMm,
+            'camadas': camadas,
+            'quantidade_calculada': quantidadeCalculada,
+            'tipo_chapa': tipoChapa,
+            'setor_origem': setorOrigem,
+            'responsavel_id': responsavelId,
+          })
+          .timeout(timeoutRede);
     } catch (e) {
       if (!falhaDeRede(e)) rethrow;
       await _db.inserirPendente(
@@ -220,16 +324,19 @@ class PaletesRepository {
             .timeout(timeoutRede);
         final proximoNumero = (ultimo?['numero_sequencial'] as int? ?? 0) + 1;
 
-        await _client.from('paletes').insert({
-          'ordem_producao_id': pendente.ordemProducaoId,
-          'numero_sequencial': proximoNumero,
-          'altura_medida_mm': pendente.alturaMedidaMm,
-          'camadas': pendente.camadas,
-          'quantidade_calculada': pendente.quantidadeCalculada,
-          'tipo_chapa': pendente.tipoChapa,
-          'setor_origem': pendente.setorOrigem,
-          'responsavel_id': pendente.responsavelId,
-        }).timeout(timeoutRede);
+        await _client
+            .from('paletes')
+            .insert({
+              'ordem_producao_id': pendente.ordemProducaoId,
+              'numero_sequencial': proximoNumero,
+              'altura_medida_mm': pendente.alturaMedidaMm,
+              'camadas': pendente.camadas,
+              'quantidade_calculada': pendente.quantidadeCalculada,
+              'tipo_chapa': pendente.tipoChapa,
+              'setor_origem': pendente.setorOrigem,
+              'responsavel_id': pendente.responsavelId,
+            })
+            .timeout(timeoutRede);
         await _db.removerPalete(pendente.id);
       } catch (e) {
         await _db.marcarErroSincronizacao(pendente.id, e.toString());
@@ -252,11 +359,13 @@ class PaletesRepository {
       }
       return camadas! * ordem.pacotesPorCamada! * ordem.pecasPorPacote!;
     }
-    return ((alturaMedidaMm! / ordem.composicaoEspessuraMm) * ordem.qpPadrao).floor();
+    return ((alturaMedidaMm! / ordem.composicaoEspessuraMm) * ordem.qpPadrao)
+        .floor();
   }
 }
 
-LocalOrdensCompanion _paraLocalOrdem(OrdemProducaoInfo o) => LocalOrdensCompanion.insert(
+LocalOrdensCompanion _paraLocalOrdem(OrdemProducaoInfo o) =>
+    LocalOrdensCompanion.insert(
       id: o.id,
       numeroOp: o.numeroOp,
       quantidadePedida: o.quantidadePedida,
@@ -266,25 +375,34 @@ LocalOrdensCompanion _paraLocalOrdem(OrdemProducaoInfo o) => LocalOrdensCompanio
       qpPadrao: o.qpPadrao,
       clienteNome: o.clienteNome,
       composicaoEspessuraMm: o.composicaoEspessuraMm,
+      composicaoCodigo: Value(o.composicaoCodigo),
+      comprimentoMm: Value(o.comprimentoMm),
+      larguraMm: Value(o.larguraMm),
       pacotesPorCamada: Value(o.pacotesPorCamada),
       pecasPorPacote: Value(o.pecasPorPacote),
+      arranjo: Value(o.arranjo),
     );
 
 OrdemProducaoInfo _deLocalOrdem(LocalOrden o) => OrdemProducaoInfo(
-      id: o.id,
-      numeroOp: o.numeroOp,
-      quantidadePedida: o.quantidadePedida,
-      dataPedido: o.dataPedido,
-      status: o.status,
-      codigoFt: o.codigoFt,
-      qpPadrao: o.qpPadrao,
-      clienteNome: o.clienteNome,
-      composicaoEspessuraMm: o.composicaoEspessuraMm,
-      pacotesPorCamada: o.pacotesPorCamada,
-      pecasPorPacote: o.pecasPorPacote,
-    );
+  id: o.id,
+  numeroOp: o.numeroOp,
+  quantidadePedida: o.quantidadePedida,
+  dataPedido: o.dataPedido,
+  status: o.status,
+  codigoFt: o.codigoFt,
+  qpPadrao: o.qpPadrao,
+  clienteNome: o.clienteNome,
+  composicaoEspessuraMm: o.composicaoEspessuraMm,
+  composicaoCodigo: o.composicaoCodigo ?? '—',
+  comprimentoMm: o.comprimentoMm ?? 0,
+  larguraMm: o.larguraMm ?? 0,
+  pacotesPorCamada: o.pacotesPorCamada,
+  pecasPorPacote: o.pecasPorPacote,
+  arranjo: o.arranjo,
+);
 
-LocalPaletesCompanion _paraLocalPalete(Palete p) => LocalPaletesCompanion.insert(
+LocalPaletesCompanion _paraLocalPalete(Palete p) =>
+    LocalPaletesCompanion.insert(
       id: p.id,
       ordemProducaoId: p.ordemProducaoId,
       numeroSequencial: Value(p.numeroSequencial),
@@ -302,25 +420,33 @@ LocalPaletesCompanion _paraLocalPalete(Palete p) => LocalPaletesCompanion.insert
     );
 
 Palete _deLocalPalete(LocalPalete p) => Palete(
-      id: p.id,
-      ordemProducaoId: p.ordemProducaoId,
-      numeroSequencial: p.numeroSequencial,
-      alturaMedidaMm: p.alturaMedidaMm,
-      camadas: p.camadas,
-      quantidadeCalculada: p.quantidadeCalculada,
-      tipoChapa: p.tipoChapa,
-      setorOrigem: p.setorOrigem,
-      responsavelId: p.responsavelId,
-      dataHora: p.dataHora,
-      quantidadeReprovada: p.quantidadeReprovada,
-      saldoDisponivel: p.saldoDisponivel,
-      revisorNome: p.revisorNome,
-      sincronizado: p.sincronizado,
-      erroSincronizacao: p.erroSincronizacao,
-    );
+  id: p.id,
+  ordemProducaoId: p.ordemProducaoId,
+  numeroSequencial: p.numeroSequencial,
+  alturaMedidaMm: p.alturaMedidaMm,
+  camadas: p.camadas,
+  quantidadeCalculada: p.quantidadeCalculada,
+  tipoChapa: p.tipoChapa,
+  setorOrigem: p.setorOrigem,
+  responsavelId: p.responsavelId,
+  dataHora: p.dataHora,
+  quantidadeReprovada: p.quantidadeReprovada,
+  saldoDisponivel: p.saldoDisponivel,
+  revisorNome: p.revisorNome,
+  sincronizado: p.sincronizado,
+  erroSincronizacao: p.erroSincronizacao,
+);
 
 final paletesRepositoryProvider = Provider<PaletesRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
   final db = ref.watch(appDatabaseProvider);
   return PaletesRepository(client, db);
 });
+
+/// Compartilhado entre a tela de detalhe da OP e a tela de apontamento —
+/// as duas precisam da mesma lista (uma pra exibir, a outra pra calcular
+/// "produzido nesta OP" e o próximo número de palete).
+final paletesDaOrdemProvider = FutureProvider.autoDispose
+    .family<List<Palete>, String>((ref, ordemId) {
+      return ref.watch(paletesRepositoryProvider).listarPaletesDaOrdem(ordemId);
+    });

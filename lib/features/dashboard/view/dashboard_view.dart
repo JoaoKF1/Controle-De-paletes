@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../data/repositories/dashboard_repository.dart';
 import '../../../domain/entities/dashboard_dados.dart';
+import '../../../shared/widgets/apontamento_kit.dart';
 
 // Paleta categórica validada (ver skill de dataviz): slot 1 azul, slot 2
 // laranja — ordem fixa, nunca ciclada. Sequencial reusa o mesmo azul.
@@ -17,12 +18,15 @@ const _corGrid = Color(0xFFE1E0D9);
 final _resumoProvider = FutureProvider.autoDispose<ResumoDashboard>((ref) {
   return ref.watch(dashboardRepositoryProvider).buscarResumo();
 });
-final _producaoPorDiaProvider = FutureProvider.autoDispose<List<ProducaoDia>>((ref) {
+final _producaoPorDiaProvider = FutureProvider.autoDispose<List<ProducaoDia>>((
+  ref,
+) {
   return ref.watch(dashboardRepositoryProvider).buscarProducaoPorDia();
 });
-final _refugoPorMotivoProvider = FutureProvider.autoDispose<List<RefugoPorMotivo>>((ref) {
-  return ref.watch(dashboardRepositoryProvider).buscarRefugoPorMotivo();
-});
+final _refugoPorMotivoProvider =
+    FutureProvider.autoDispose<List<RefugoPorMotivo>>((ref) {
+      return ref.watch(dashboardRepositoryProvider).buscarRefugoPorMotivo();
+    });
 
 class DashboardView extends ConsumerWidget {
   const DashboardView({super.key});
@@ -33,25 +37,46 @@ class DashboardView extends ConsumerWidget {
       appBar: AppBar(title: const Text('Dashboard')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _linhaKpis(context, ref),
-            const SizedBox(height: 24),
-            Text('Produção por dia', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            _cartaoGrafico(context, height: 260, child: _graficoProducao(context, ref)),
-            const SizedBox(height: 24),
-            Text('Refugo por motivo', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            _cartaoGrafico(context, height: 260, child: _graficoRefugo(context, ref)),
-          ],
+        child: LarguraFormulario(
+          maxWidth: 800,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _linhaKpis(context, ref),
+              const SizedBox(height: 24),
+              Text(
+                'Produção por dia',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              _cartaoGrafico(
+                context,
+                height: 260,
+                child: _graficoProducao(context, ref),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Refugo por motivo',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              _cartaoGrafico(
+                context,
+                height: 260,
+                child: _graficoRefugo(context, ref),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _cartaoGrafico(BuildContext context, {required double height, required Widget child}) {
+  Widget _cartaoGrafico(
+    BuildContext context, {
+    required double height,
+    required Widget child,
+  }) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 20, 20, 12),
@@ -63,15 +88,28 @@ class DashboardView extends ConsumerWidget {
   Widget _linhaKpis(BuildContext context, WidgetRef ref) {
     final resumoAsync = ref.watch(_resumoProvider);
     return resumoAsync.when(
-      loading: () => const SizedBox(height: 88, child: Center(child: CircularProgressIndicator())),
+      loading: () => const SizedBox(
+        height: 88,
+        child: Center(child: CircularProgressIndicator()),
+      ),
       error: (erro, _) => Text('Erro ao carregar resumo: $erro'),
       data: (resumo) => Row(
         children: [
-          Expanded(child: _statTile(context, 'OPs em aberto', resumo.opsAbertas)),
+          Expanded(
+            child: _statTile(context, 'OPs em aberto', resumo.opsAbertas),
+          ),
           const SizedBox(width: 12),
-          Expanded(child: _statTile(context, 'OPs concluídas', resumo.opsConcluidas)),
+          Expanded(
+            child: _statTile(context, 'OPs concluídas', resumo.opsConcluidas),
+          ),
           const SizedBox(width: 12),
-          Expanded(child: _statTile(context, 'Ocorrências em análise', resumo.ocorrenciasEmAnalise)),
+          Expanded(
+            child: _statTile(
+              context,
+              'Ocorrências em análise',
+              resumo.ocorrenciasEmAnalise,
+            ),
+          ),
         ],
       ),
     );
@@ -86,10 +124,15 @@ class DashboardView extends ConsumerWidget {
           children: [
             Text(
               '$valor',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
-            Text(rotulo, style: const TextStyle(color: _corTextoSecundario, fontSize: 13)),
+            Text(
+              rotulo,
+              style: const TextStyle(color: _corTextoSecundario, fontSize: 13),
+            ),
           ],
         ),
       ),
@@ -103,7 +146,9 @@ class DashboardView extends ConsumerWidget {
       error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
       data: (dias) {
         if (dias.isEmpty) {
-          return const Center(child: Text('Sem apontamentos nos últimos 14 dias.'));
+          return const Center(
+            child: Text('Sem apontamentos nos últimos 14 dias.'),
+          );
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,23 +168,41 @@ class DashboardView extends ConsumerWidget {
                   ),
                   borderData: FlBorderData(show: false),
                   titlesData: FlTitlesData(
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
                     leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: true, reservedSize: 32, getTitlesWidget: _rotuloEixoY),
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 32,
+                        getTitlesWidget: _rotuloEixoY,
+                      ),
                     ),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
                         reservedSize: 28,
-                        interval: (dias.length / 6).ceilToDouble().clamp(1, double.infinity),
-                        getTitlesWidget: (valor, meta) => _rotuloEixoXData(valor, meta, dias),
+                        interval: (dias.length / 6).ceilToDouble().clamp(
+                          1,
+                          double.infinity,
+                        ),
+                        getTitlesWidget: (valor, meta) =>
+                            _rotuloEixoXData(valor, meta, dias),
                       ),
                     ),
                   ),
-                  lineTouchData: const LineTouchData(handleBuiltInTouches: true),
+                  lineTouchData: const LineTouchData(
+                    handleBuiltInTouches: true,
+                  ),
                   lineBarsData: [
-                    _linha(dias, (d) => d.onduladeira.toDouble(), _corOnduladeira),
+                    _linha(
+                      dias,
+                      (d) => d.onduladeira.toDouble(),
+                      _corOnduladeira,
+                    ),
                     _linha(dias, (d) => d.conversao.toDouble(), _corConversao),
                   ],
                 ),
@@ -151,9 +214,16 @@ class DashboardView extends ConsumerWidget {
     );
   }
 
-  LineChartBarData _linha(List<ProducaoDia> dias, double Function(ProducaoDia) valor, Color cor) {
+  LineChartBarData _linha(
+    List<ProducaoDia> dias,
+    double Function(ProducaoDia) valor,
+    Color cor,
+  ) {
     return LineChartBarData(
-      spots: [for (var i = 0; i < dias.length; i++) FlSpot(i.toDouble(), valor(dias[i]))],
+      spots: [
+        for (var i = 0; i < dias.length; i++)
+          FlSpot(i.toDouble(), valor(dias[i])),
+      ],
       isCurved: false,
       color: cor,
       barWidth: 2,
@@ -170,7 +240,9 @@ class DashboardView extends ConsumerWidget {
         if (motivos.isEmpty) {
           return const Center(child: Text('Nenhum refugo lançado ainda.'));
         }
-        final maiorValor = motivos.map((m) => m.quantidade).reduce((a, b) => a > b ? a : b);
+        final maiorValor = motivos
+            .map((m) => m.quantidade)
+            .reduce((a, b) => a > b ? a : b);
         return BarChart(
           BarChartData(
             alignment: BarChartAlignment.spaceAround,
@@ -181,16 +253,25 @@ class DashboardView extends ConsumerWidget {
             ),
             borderData: FlBorderData(show: false),
             titlesData: FlTitlesData(
-              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
               leftTitles: AxisTitles(
-                sideTitles: SideTitles(showTitles: true, reservedSize: 32, getTitlesWidget: _rotuloEixoY),
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 32,
+                  getTitlesWidget: _rotuloEixoY,
+                ),
               ),
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 42,
-                  getTitlesWidget: (valor, meta) => _rotuloEixoXMotivo(valor, meta, motivos),
+                  getTitlesWidget: (valor, meta) =>
+                      _rotuloEixoXMotivo(valor, meta, motivos),
                 ),
               ),
             ),
@@ -204,7 +285,9 @@ class DashboardView extends ConsumerWidget {
                       toY: motivos[i].quantidade.toDouble(),
                       color: _corSequencial,
                       width: 28,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(4),
+                      ),
                     ),
                   ],
                 ),
@@ -226,10 +309,19 @@ class DashboardView extends ConsumerWidget {
               Container(
                 width: 8,
                 height: 8,
-                decoration: BoxDecoration(color: item.cor, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: item.cor,
+                  shape: BoxShape.circle,
+                ),
               ),
               const SizedBox(width: 6),
-              Text(item.rotulo, style: const TextStyle(color: _corTextoSecundario, fontSize: 12)),
+              Text(
+                item.rotulo,
+                style: const TextStyle(
+                  color: _corTextoSecundario,
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
       ],
@@ -243,7 +335,8 @@ class _ItemLegenda {
   const _ItemLegenda(this.rotulo, this.cor);
 }
 
-FlLine _linhaGrid(double valor) => const FlLine(color: _corGrid, strokeWidth: 1);
+FlLine _linhaGrid(double valor) =>
+    const FlLine(color: _corGrid, strokeWidth: 1);
 
 Widget _rotuloEixoY(double valor, TitleMeta meta) {
   if (valor != valor.roundToDouble()) return const SizedBox.shrink();
@@ -265,7 +358,11 @@ Widget _rotuloEixoXData(double valor, TitleMeta meta, List<ProducaoDia> dias) {
   );
 }
 
-Widget _rotuloEixoXMotivo(double valor, TitleMeta meta, List<RefugoPorMotivo> motivos) {
+Widget _rotuloEixoXMotivo(
+  double valor,
+  TitleMeta meta,
+  List<RefugoPorMotivo> motivos,
+) {
   final i = valor.round();
   if (i < 0 || i >= motivos.length) return const SizedBox.shrink();
   return Padding(

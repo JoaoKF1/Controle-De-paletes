@@ -20,7 +20,9 @@ class AuthRepository {
   Future<void> entrar({required String login, required String senha}) {
     final email = _emailTecnico(login);
     // ignore: avoid_print
-    print('[DEBUG] tentando login com email="$email" senha_length=${senha.length}');
+    print(
+      '[DEBUG] tentando login com email="$email" senha_length=${senha.length}',
+    );
     return _client.auth.signInWithPassword(email: email, password: senha);
   }
 
@@ -30,7 +32,11 @@ class AuthRepository {
 
   /// Busca o perfil do usuário logado na tabela `profiles`.
   Future<Usuario> buscarPerfil(String userId) async {
-    final dados = await _client.from('profiles').select().eq('id', userId).single();
+    final dados = await _client
+        .from('profiles')
+        .select()
+        .eq('id', userId)
+        .single();
     return Usuario.fromMap(dados);
   }
 

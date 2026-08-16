@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../domain/entities/composicao.dart';
+import '../../../shared/widgets/apontamento_kit.dart';
 
 final _composicoesProvider = FutureProvider.autoDispose<List<Composicao>>((
   ref,
@@ -28,16 +29,18 @@ class ComposicoesView extends ConsumerWidget {
               child: Text('Nenhuma composição cadastrada ainda.'),
             );
           }
-          return ListView.separated(
-            itemCount: composicoes.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, i) {
-              final c = composicoes[i];
-              return ListTile(
-                title: Text(c.codigo),
-                subtitle: Text('Espessura: ${c.espessuraMm} mm'),
-              );
-            },
+          return LarguraFormulario(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: composicoes.length,
+              itemBuilder: (context, i) {
+                final c = composicoes[i];
+                return CartaoLista(
+                  title: Text(c.codigo),
+                  subtitle: Text('Espessura: ${c.espessuraMm} mm'),
+                );
+              },
+            ),
           );
         },
       ),
@@ -57,34 +60,32 @@ class ComposicoesView extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Nova composição'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: codigoController,
-                decoration: const InputDecoration(
-                  labelText: 'Código (ex: T140M130T140/B)',
+        content: SizedBox(
+          width: 380,
+          child: Form(
+            key: formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CampoRotulado(
+                  rotulo: 'Código',
+                  controller: codigoController,
+                  hint: 'Ex: T140M130T140/B',
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
                 ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-              ),
-              TextFormField(
-                controller: espessuraController,
-                decoration: const InputDecoration(labelText: 'Espessura (mm)'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+                const SizedBox(height: 12),
+                CampoRotulado(
+                  rotulo: 'Espessura (mm)',
+                  controller: espessuraController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: validarNumeroPositivo,
                 ),
-                validator: (v) {
-                  final valor = double.tryParse((v ?? '').replaceAll(',', '.'));
-                  if (valor == null || valor <= 0) {
-                    return 'Informe um valor maior que zero';
-                  }
-                  return null;
-                },
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [

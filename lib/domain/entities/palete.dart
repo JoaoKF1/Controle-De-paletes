@@ -57,22 +57,22 @@ class Palete {
   String get numeroExibicao => numeroSequencial?.toString() ?? 'pendente';
 
   factory Palete.fromMap(Map<String, dynamic> map) => Palete(
-        id: map['id'] as String,
-        ordemProducaoId: map['ordem_producao_id'] as String,
-        numeroSequencial: map['numero_sequencial'] as int?,
-        alturaMedidaMm: (map['altura_medida_mm'] as num?)?.toDouble(),
-        camadas: map['camadas'] as int?,
-        quantidadeCalculada: map['quantidade_calculada'] as int,
-        tipoChapa: map['tipo_chapa'] as String,
-        setorOrigem: map['setor_origem'] as String,
-        codigoBarras: map['codigo_barras'] as String?,
-        responsavelId: map['responsavel_id'] as String,
-        dataHora: DateTime.parse(map['data_hora'] as String),
-        quantidadeReprovada: map['quantidade_reprovada'] as int? ?? 0,
-        saldoDisponivel:
-            map['saldo_disponivel'] as int? ?? map['quantidade_calculada'] as int,
-        revisorNome: (map['revisor'] as Map<String, dynamic>?)?['nome'] as String?,
-      );
+    id: map['id'] as String,
+    ordemProducaoId: map['ordem_producao_id'] as String,
+    numeroSequencial: map['numero_sequencial'] as int?,
+    alturaMedidaMm: (map['altura_medida_mm'] as num?)?.toDouble(),
+    camadas: map['camadas'] as int?,
+    quantidadeCalculada: map['quantidade_calculada'] as int,
+    tipoChapa: map['tipo_chapa'] as String,
+    setorOrigem: map['setor_origem'] as String,
+    codigoBarras: map['codigo_barras'] as String?,
+    responsavelId: map['responsavel_id'] as String,
+    dataHora: DateTime.parse(map['data_hora'] as String),
+    quantidadeReprovada: map['quantidade_reprovada'] as int? ?? 0,
+    saldoDisponivel:
+        map['saldo_disponivel'] as int? ?? map['quantidade_calculada'] as int,
+    revisorNome: (map['revisor'] as Map<String, dynamic>?)?['nome'] as String?,
+  );
 }
 
 /// Ordem de produção com os dados de Cliente, Ficha Técnica e Composição
@@ -88,10 +88,29 @@ class OrdemProducaoInfo {
   final int qpPadrao;
   final String clienteNome;
   final double composicaoEspessuraMm;
+  final String composicaoCodigo;
+  final double comprimentoMm;
+  final double larguraMm;
 
   // Paletização da Conversão — só preenchido em FTs de OP 802 (ver 1).
   final int? pacotesPorCamada;
   final int? pecasPorPacote;
+
+  // Quantas caixas saem de 1 chapa no arranjo de impressão da Conversão —
+  // null trata como 1 (1 chapa = 1 caixa, comportamento anterior a esse
+  // campo). Usado pra converter caixas apontadas de volta em chapas
+  // consumidas no cálculo de "chapas disponíveis" (ver 9.1).
+  final int? arranjo;
+  int get arranjoEfetivo => arranjo ?? 1;
+
+  // Prévia de progresso pra tela de lista (ver `listarOrdensAbertas` e
+  // `listarOrdensDisponiveisConversao`), sem precisar abrir o detalhe —
+  // numerador genérico (produzido pela Onduladeira, ou já consumido pela
+  // Conversão) sobre um alvo que também muda por tela (`quantidadePedida`
+  // na Onduladeira, chapas disponíveis na Conversão). Ambos null quando
+  // não foi calculado (ex.: cache offline de uma OP nunca visitada).
+  final int? progressoAtual;
+  final int? progressoAlvo;
 
   const OrdemProducaoInfo({
     required this.id,
@@ -103,9 +122,36 @@ class OrdemProducaoInfo {
     required this.qpPadrao,
     required this.clienteNome,
     required this.composicaoEspessuraMm,
+    required this.composicaoCodigo,
+    required this.comprimentoMm,
+    required this.larguraMm,
     this.pacotesPorCamada,
     this.pecasPorPacote,
+    this.arranjo,
+    this.progressoAtual,
+    this.progressoAlvo,
   });
+
+  OrdemProducaoInfo comProgresso({required int atual, required int alvo}) =>
+      OrdemProducaoInfo(
+        id: id,
+        numeroOp: numeroOp,
+        quantidadePedida: quantidadePedida,
+        dataPedido: dataPedido,
+        status: status,
+        codigoFt: codigoFt,
+        qpPadrao: qpPadrao,
+        clienteNome: clienteNome,
+        composicaoEspessuraMm: composicaoEspessuraMm,
+        composicaoCodigo: composicaoCodigo,
+        comprimentoMm: comprimentoMm,
+        larguraMm: larguraMm,
+        pacotesPorCamada: pacotesPorCamada,
+        pecasPorPacote: pecasPorPacote,
+        arranjo: arranjo,
+        progressoAtual: atual,
+        progressoAlvo: alvo,
+      );
 
   factory OrdemProducaoInfo.fromMap(Map<String, dynamic> map) {
     final ft = map['fichas_tecnicas'] as Map<String, dynamic>;
@@ -121,8 +167,12 @@ class OrdemProducaoInfo {
       qpPadrao: ft['qp_padrao'] as int,
       clienteNome: cliente['razao_social'] as String,
       composicaoEspessuraMm: (composicao['espessura_mm'] as num).toDouble(),
+      composicaoCodigo: composicao['codigo'] as String,
+      comprimentoMm: (ft['comprimento_mm'] as num).toDouble(),
+      larguraMm: (ft['largura_mm'] as num).toDouble(),
       pacotesPorCamada: ft['pacotes_por_camada'] as int?,
       pecasPorPacote: ft['pecas_por_pacote'] as int?,
+      arranjo: ft['arranjo'] as int?,
     );
   }
 
@@ -130,5 +180,21 @@ class OrdemProducaoInfo {
   /// final ('elaborado', vai direto pra Expedição sem Conversão); 802
   /// ainda é intermediário ('semi_elaborado', precisa da Conversão depois).
   /// Não usar pra apontamento da Conversão — lá é sempre 'elaborado'.
-  String get tipoChapaOnduladeira => numeroOp.startsWith('803') ? 'elaborado' : 'semi_elaborado';
+  String get tipoChapaOnduladeira =>
+      numeroOp.startsWith('803') ? 'elaborado' : 'semi_elaborado';
+
+  /// "Comprimento x Largura mm" pronto pra exibir — evita repetir a
+  /// formatação em cada tela que mostra a medida da chapa.
+  String get medidaExibicao =>
+      '${comprimentoMm.toStringAsFixed(0)} x ${larguraMm.toStringAsFixed(0)} mm';
+
+  /// `quantidade_pedida` é sempre o total de **caixas** que o cliente
+  /// pediu (o produto final) — nunca o que a Onduladeira precisa
+  /// produzir. Numa OP 802 com arranjo (ver `arranjoEfetivo`), a
+  /// Onduladeira só precisa de `quantidade_pedida ÷ arranjo` chapas pra
+  /// alimentar a Conversão render esse tanto de caixas; arredonda pra
+  /// cima pra nunca faltar material. Numa OP 803 (sem Conversão, sem
+  /// arranjo cadastrado) o alvo é a própria `quantidade_pedida` — chapa
+  /// já é o produto final ali.
+  int get alvoChapasOnduladeira => (quantidadePedida / arranjoEfetivo).ceil();
 }

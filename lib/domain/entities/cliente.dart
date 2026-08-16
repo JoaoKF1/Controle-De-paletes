@@ -14,16 +14,16 @@ class Cliente {
   });
 
   factory Cliente.fromMap(Map<String, dynamic> map) => Cliente(
-        id: map['id'] as String,
-        razaoSocial: map['razao_social'] as String,
-        cidade: map['cidade'] as String,
-        uf: map['uf'] as String,
-        ativo: map['ativo'] as bool? ?? true,
-      );
+    id: map['id'] as String,
+    razaoSocial: map['razao_social'] as String,
+    cidade: map['cidade'] as String,
+    uf: map['uf'] as String,
+    ativo: map['ativo'] as bool? ?? true,
+  );
 
   Map<String, dynamic> toInsertMap() => {
-        'razao_social': razaoSocial,
-        'cidade': cidade,
-        'uf': uf,
-      };
+    'razao_social': razaoSocial,
+    'cidade': cidade,
+    'uf': uf,
+  };
 }
