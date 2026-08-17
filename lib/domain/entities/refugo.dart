@@ -30,6 +30,6 @@ class Refugo {
     responsavelId: map['responsavel_id'] as String,
     quantidade: map['quantidade'] as int,
     motivo: map['motivo'] as String,
-    dataHora: DateTime.parse(map['data_hora'] as String),
+    dataHora: DateTime.parse(map['data_hora'] as String).toLocal(),
   );
 }

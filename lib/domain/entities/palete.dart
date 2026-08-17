@@ -67,7 +67,7 @@ class Palete {
     setorOrigem: map['setor_origem'] as String,
     codigoBarras: map['codigo_barras'] as String?,
     responsavelId: map['responsavel_id'] as String,
-    dataHora: DateTime.parse(map['data_hora'] as String),
+    dataHora: DateTime.parse(map['data_hora'] as String).toLocal(),
     quantidadeReprovada: map['quantidade_reprovada'] as int? ?? 0,
     saldoDisponivel:
         map['saldo_disponivel'] as int? ?? map['quantidade_calculada'] as int,
@@ -161,7 +161,7 @@ class OrdemProducaoInfo {
       id: map['id'] as String,
       numeroOp: map['numero_op'] as String,
       quantidadePedida: map['quantidade_pedida'] as int,
-      dataPedido: DateTime.parse(map['data_pedido'] as String),
+      dataPedido: DateTime.parse(map['data_pedido'] as String).toLocal(),
       status: map['status'] as String,
       codigoFt: ft['codigo_ft'] as String,
       qpPadrao: ft['qp_padrao'] as int,

@@ -35,10 +35,18 @@ Isso importa pro app porque **o `tipo_chapa` de um apontamento da Onduladeira de
 
 ## 3. Stack confirmada
 
-- **App**: Flutter (mobile iOS/Android + desktop), build iOS via Codemagic (sem depender de Mac local)
-- **Banco/Backend**: Supabase (Postgres + Auth + Realtime + Storage)
-- **Offline**: SQLite local via pacote `drift`, sincronizando com Supabase ao reconectar
-- **Etiqueta**: geração de PDF (A4, layout próprio com código de barras), impressão via rede/WiFi usando o suporte nativo do SO
+- **App**: Flutter (`lib/`). Hoje builda e roda de verdade em **Windows desktop** (dev/teste do dia a dia) e **Android** (APK gerado e testado — ver seção 12). iOS ainda não foi construído; segue o plano original de build via Codemagic, sem depender de Mac local.
+- **Gerenciamento de estado**: Riverpod (`flutter_riverpod`) — `Provider`, `FutureProvider` (com `.family` quando o dado depende de um parâmetro, ex. paletes de uma OP) e `StreamProvider` (dados que atualizam sozinhos, ex. fila de pendências offline).
+- **Backend**: Supabase (Postgres + Auth + Realtime), client `supabase_flutter`. Schema sempre versionado em `supabase/migrations/`, aplicado via Supabase CLI (`supabase db push`) — nunca SQL colado direto no dashboard (ver seção 7).
+- **Modo offline**: SQLite local via `drift` (+ `sqlite3_flutter_libs`, `path_provider`, `path`) — cache de leitura + fila de escrita (outbox), ver 9.12/9.13.
+- **Configuração/segredos**: `flutter_dotenv`, lendo um `.env` (URL + chave pública do Supabase) empacotado como asset — a `service_role` key nunca entra no app, só na Edge Function (ver 9.8).
+- **Gráficos (Dashboard)**: `fl_chart`, com paleta e padrões de acessibilidade validados via skill de dataviz (ver Sprint 7).
+- **Conectividade**: `connectivity_plus` — usado só pra saber **quando** tentar sincronizar de novo, nunca pra decidir se uma ação individual é offline (isso é sempre pelo resultado real da chamada de rede, ver 9.12).
+- **IDs offline**: `uuid` — gera IDs client-side pra registros criados sem conexão; o número sequencial "de verdade" continua sendo sempre definido pelo servidor no momento da sincronização.
+- **Leitura de código de barras**: `mobile_scanner` — dependência já instalada, mas sem tela usando a câmera de verdade ainda (Sprint 6, adiado; as ações que dependeriam disso hoje funcionam por toque na lista, ver 9.5).
+- **Etiqueta** (Sprint 6, adiado): `pdf` + `printing` já instalados pra quando o layout for aprovado pela gerência — geração de PDF A4 com código de barras, impressão via rede/WiFi.
+- **Datas/horas**: `intl` pra formatação. Todo timestamp que vem do Supabase (gravado em UTC) passa por `.toLocal()` ao entrar no app, em todas as entidades — sem isso, qualquer usuário fora do UTC (Brasil é UTC-3) vê a hora adiantada. Foi um bug real encontrado testando no celular (nesse passe de design pré-piloto): o Dashboard já convertia certo, mas as entidades (`Palete`, `OrdemProducao`, `Refugo`, `OcorrenciaQualidade`) não — corrigido em todas.
+- **CI**: GitHub Actions (`.github/workflows/ci.yml`) — `flutter analyze` + `flutter test` em todo push, rede de segurança complementar (não é gate — ver seção 7).
 
 ---
 
@@ -88,7 +96,7 @@ O schema real do banco vive em `supabase/migrations/` — esse é o histórico v
 
 - **`profiles`**: um perfil por usuário autenticado, ligado ao `auth.users` nativo do Supabase. Guarda `login` (o "usuário" curto que a pessoa digita), `nome`, `perfil` (`onduladeira`/`conversao`/`qualidade`/`admin`) e `ativo`.
 - **`clientes`**: cadastro simples — razão social, cidade, UF, ativo.
-- **`composicoes`**: os "tipos de onda" (ex: `T140M130T140/B`), cada um com sua `espessura_mm`.
+- **`composicoes`**: os "tipos de onda" (ex: `T140M130T140/B`), cada um com sua `espessura_mm`. `codigo` é gerado pelo app a partir de `tipo_onda` (`B`/`C` = onda simples, `DB`/`DC` = onda dupla) e dos papéis escolhidos (`papel_1`..`papel_5` — só 3 preenchidos na onda simples, os 5 na dupla), não é mais digitado livre — ver 5.1.
 - **`fichas_tecnicas`**: o produto em si — código, cliente, composição, `comprimento_mm`/`largura_mm` (medida da chapa, ver 5.1), `qp_padrao` (número de pilhas por palete), as 8 colunas de qualidade opcionais (ver 9.6), até 5 vincos opcionais (ver 5.1) e os campos de paletização/arranjo da Conversão (ver 5.3).
 - **`ordens_producao`**: a OP — número (cujo prefixo 802/803 define o roteamento, ver seção 1), ficha técnica, quantidade pedida, data do pedido e `status` (`aberta`/`concluida`).
 - **`paletes`**: cada apontamento — OP, número sequencial (único por OP), `altura_medida_mm` (Onduladeira) ou `camadas` (Conversão) — um dos dois, nunca os dois —, quantidade calculada, `tipo_chapa`, `setor_origem` (`onduladeira`/`conversao`), código de barras (único globalmente, é o valor impresso na etiqueta), responsável, data/hora, e `revisado_por` (quem debitou saldo por último — ver 9.4).
@@ -103,7 +111,7 @@ Observações:
 
 Colunas adicionadas depois do Sprint 1, pra cobrir as especificações técnicas do produto (ver 9.6): `gramatura`, `coluna`, `cobb_interno`, `cobb_externo`, `mullen`, `compressao`, `resina_interna`, `resina_externa`. Todas opcionais (nullable) — nem toda FT precisa preencher tudo de cara.
 
-**Medida da chapa** era um único campo de texto livre (`medida_chapa`, ex: `"733 x 1.964"`) — virou 2 colunas numéricas, `comprimento_mm` e `largura_mm`, ambas obrigatórias. A migração que fez a troca (Sprint 9) leu o texto existente pra preencher as duas colunas novas antes de derrubar a antiga, então nenhuma FT já cadastrada perdeu dado.
+**Medida da chapa** era um único campo de texto livre (`medida_chapa`, ex: `"733 x 1.964"`) — virou 2 colunas numéricas, `comprimento_mm` e `largura_mm`, ambas obrigatórias. A migração que fez a troca (nesse passe de design pré-piloto) leu o texto existente pra preencher as duas colunas novas antes de derrubar a antiga, então nenhuma FT já cadastrada perdeu dado.
 
 **Vincos**: `vinco_1_mm` até `vinco_5_mm`, todas opcionais e sem ordem fixa entre si — uma caixa pode já sair vincada (linhas de dobra marcadas) direto da Onduladeira, então a FT guarda até 5 medidas de vinco conforme o desenho da caixa precisar.
 
@@ -156,7 +164,8 @@ Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer
 | 6 | Geração e impressão de etiqueta (PDF + rede WiFi) — **adiado**: layout da etiqueta depende de aprovação da gerência. Não bloqueia nenhum sprint seguinte (as ações que dependeriam de ler código de barras já funcionam por toque na lista — ver 9.5) |
 | 7 | Dashboard e relatórios (desktop) — **entregue**. Acessível pelo Admin em Cadastros. KPIs (OPs abertas/concluídas, ocorrências em análise) + produção por dia/setor (linha) + refugo por motivo (barra), com `fl_chart` |
 | 8 | Modo offline (SQLite local + sincronização) — **entregue**. Fase 1: cache de OPs/paletes + apontamento offline pra Onduladeira e Conversão (ver 9.12). Fase 2: refugo, pedir revisão de qualidade e cadastros do Admin, com fila genérica (ver 9.13) — o que depende de saldo atual do palete (segregar/resolver/corrigir/excluir) continua exigindo conexão de propósito |
-| 9 | Testes com usuários piloto (Onduladeira + Conversão), ajustes finais — passe de design/UX feito antes de começar (ver seção 11), incluindo a correção da semântica de `quantidade_pedida` por setor (ver 9.1) |
+| 9 | Testes de qualidade nas chapas: tela pra Qualidade registrar os resultados **medidos** num palete/OP, comparando com os valores-alvo já cadastrados na Ficha Técnica (gramatura, coluna, Cobb interno/externo, Mullen, compressão, resina interna/externa — ver 9.6). Escopo (o quê exatamente é registrado, por palete ou por OP, e se há aprovação automática por faixa de tolerância) ainda a alinhar antes de começar a codar, seguindo o fluxo de sempre |
+| 10 | Testes com usuários piloto (Onduladeira, Conversão, Qualidade), ajustes finais — passe de design/UX já feito antes de começar (ver seção 11), incluindo a correção da semântica de `quantidade_pedida` por setor (ver 9.1) e o primeiro APK Android gerado e testado (ver seção 12) |
 
 ---
 
@@ -289,7 +298,7 @@ Estende a mesma fila de pendentes da Fase 1, mas de forma genérica: uma única 
 
 ## 11. Identidade visual e padrões de tela
 
-Passe de design feito antes do Sprint 9 (piloto). Cobriu duas coisas ao mesmo tempo: a camada visual em si (tema, componentes, layout) e, ao revisar tela por tela, algumas correções reais de regra de negócio que só ficaram óbvias olhando a UI de novo (documentadas onde fazem sentido — 9.1 — e só referenciadas aqui).
+Passe de design feito depois do Sprint 8, preparando o terreno pros sprints seguintes (9 — testes de qualidade — e 10 — piloto). Cobriu duas coisas ao mesmo tempo: a camada visual em si (tema, componentes, layout) e, ao revisar tela por tela, algumas correções reais de regra de negócio que só ficaram óbvias olhando a UI de novo (documentadas onde fazem sentido — 9.1 — e só referenciadas aqui).
 
 **Tema e fundamentos**
 
@@ -311,3 +320,16 @@ Passe de design feito antes do Sprint 9 (piloto). Cobriu duas coisas ao mesmo te
 **Etiqueta continua adiada**: nenhum botão de confirmar apontamento promete impressão de etiqueta (fica só "Confirmar apontamento") — isso é do Sprint 6, ainda sem data.
 
 **Cadastro de Ordem de Produção**: formulário passou pro padrão `CampoRotulado`/`DropdownRotulado`, e o campo "Data do pedido" (que pedia pra escolher manualmente num date picker) saiu — a data é sempre a de hoje, gravada automaticamente ao salvar. `OrdemProducao` ganhou o getter `unidadePedido` (`chapas` pra OP 803, `caixas` pra 802 — mesma regra do prefixo, ver seção 1), usado na lista pra não rotular tudo como "chapas" incondicionalmente.
+
+**Cadastro de Composição virou papel por papel**: em vez de digitar o `codigo` livre (ex.: `T140M130T140/B`), o admin escolhe o **tipo de onda** — `B`/`C` (onda simples, 3 papéis: capa/miolo/capa) ou `DB`/`DC` (onda dupla, 5 papéis: capa/miolo/capa/miolo/capa) — e um papel por campo (lista fixa de exemplo por enquanto: `T090`, `T110`, `T140`, `T170`, `T190`, `T210`, ver `papeisDisponiveis` em `lib/domain/entities/composicao.dart`). O `codigo` é gerado pelo app a partir disso (papéis concatenados + `/` + tipo de onda) e mostrado como prévia antes de salvar — não é mais digitado direto, mesmo padrão de "o app calcula" já usado em `quantidade_calculada`. As 2 composições já cadastradas foram migradas pros campos novos com backfill, sem perder dado.
+
+---
+
+## 12. Build Android (APK)
+
+Primeiro APK gerado e testado num celular de verdade nesse passe de design pré-piloto. Duas coisas precisaram de ajuste pra funcionar — nenhuma delas é regra de negócio, são só configuração de build:
+
+- **Faltava a permissão de internet**: `android/app/src/main/AndroidManifest.xml` não tinha `<uses-permission android:name="android.permission.INTERNET"/>`. Sem ela o app abre normalmente, mas todo acesso ao Supabase (login incluído) falha em silêncio — nenhuma das dependências do projeto declarava essa permissão sozinha (diferente de, por exemplo, `mobile_scanner`, que já traz `CAMERA` na própria manifest).
+- **Bug do compilador Kotlin no Windows quando projeto e cache do Flutter ficam em drives diferentes** (aqui: projeto em `F:`, pub cache em `C:`) — a compilação incremental do Kotlin tenta calcular caminho relativo entre os dois e quebra com `this and base files have different roots`. Corrigido desligando a otimização em `android/gradle.properties` (`kotlin.incremental=false`). Só deixa o build Android um pouco mais lento (recompila do zero o Kotlin dos plugins a cada vez) — não afeta o app instalado nem o build Windows.
+
+**Como gerar**: `flutter build apk --release`, gera `build/app/outputs/flutter-apk/app-release.apk` (~74 MB, universal — roda em qualquer Android). Assinado com a chave de debug (`signingConfig` já configurado assim em `android/app/build.gradle.kts`, comentário original do template) — serve pra teste interno/piloto, não pra publicar na Play Store, que exigiria uma chave de release própria.

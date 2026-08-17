@@ -53,65 +53,111 @@ class ComposicoesView extends ConsumerWidget {
 
   Future<void> _abrirFormulario(BuildContext context, WidgetRef ref) async {
     final formKey = GlobalKey<FormState>();
-    final codigoController = TextEditingController();
     final espessuraController = TextEditingController();
+    var tipoOndaSelecionado = tiposOnda.first;
+    var papeisSelecionados = List.generate(
+      Composicao.quantidadePapeis(tipoOndaSelecionado),
+      (_) => papeisDisponiveis.first,
+    );
 
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Nova composição'),
-        content: SizedBox(
-          width: 380,
-          child: Form(
-            key: formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CampoRotulado(
-                  rotulo: 'Código',
-                  controller: codigoController,
-                  hint: 'Ex: T140M130T140/B',
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-                ),
-                const SizedBox(height: 12),
-                CampoRotulado(
-                  rotulo: 'Espessura (mm)',
-                  controller: espessuraController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) {
+          final codigoGerado = Composicao.gerarCodigo(
+            tipoOnda: tipoOndaSelecionado,
+            papeis: papeisSelecionados,
+          );
+
+          return AlertDialog(
+            title: const Text('Nova composição'),
+            content: SizedBox(
+              width: 380,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DropdownRotulado(
+                        rotulo: 'Tipo de onda',
+                        valor: tipoOndaSelecionado,
+                        itens: tiposOnda
+                            .map(
+                              (t) => DropdownMenuItem(value: t, child: Text(t)),
+                            )
+                            .toList(),
+                        onChanged: (v) => setState(() {
+                          tipoOndaSelecionado = v!;
+                          final quantidade = Composicao.quantidadePapeis(v);
+                          papeisSelecionados = List.generate(
+                            quantidade,
+                            (i) => i < papeisSelecionados.length
+                                ? papeisSelecionados[i]
+                                : papeisDisponiveis.first,
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 12),
+                      for (var i = 0; i < papeisSelecionados.length; i++) ...[
+                        DropdownRotulado(
+                          rotulo: 'Papel ${i + 1}',
+                          valor: papeisSelecionados[i],
+                          itens: papeisDisponiveis
+                              .map(
+                                (p) =>
+                                    DropdownMenuItem(value: p, child: Text(p)),
+                              )
+                              .toList(),
+                          onChanged: (v) =>
+                              setState(() => papeisSelecionados[i] = v!),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      CampoRotulado(
+                        rotulo: 'Espessura (mm)',
+                        controller: espessuraController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        validator: validarNumeroPositivo,
+                      ),
+                      const SizedBox(height: 16),
+                      CartaoResultado(rotulo: 'Código', valor: codigoGerado),
+                    ],
                   ),
-                  validator: validarNumeroPositivo,
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              final composicao = Composicao(
-                id: '',
-                codigo: codigoController.text.trim(),
-                espessuraMm: double.parse(
-                  espessuraController.text.replaceAll(',', '.'),
-                ),
-              );
-              await ref
-                  .read(cadastrosRepositoryProvider)
-                  .criarComposicao(composicao);
-              ref.invalidate(_composicoesProvider);
-              if (dialogContext.mounted) Navigator.of(dialogContext).pop();
-            },
-            child: const Text('Salvar'),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  if (!formKey.currentState!.validate()) return;
+                  final composicao = Composicao(
+                    id: '',
+                    codigo: codigoGerado,
+                    espessuraMm: double.parse(
+                      espessuraController.text.replaceAll(',', '.'),
+                    ),
+                    tipoOnda: tipoOndaSelecionado,
+                    papeis: papeisSelecionados,
+                  );
+                  await ref
+                      .read(cadastrosRepositoryProvider)
+                      .criarComposicao(composicao);
+                  ref.invalidate(_composicoesProvider);
+                  if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Salvar'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

@@ -36,7 +36,7 @@ class OcorrenciaQualidade {
       motivo: map['motivo'] as String,
       status: map['status'] as String,
       abertoPor: map['aberto_por'] as String,
-      dataAbertura: DateTime.parse(map['data_abertura'] as String),
+      dataAbertura: DateTime.parse(map['data_abertura'] as String).toLocal(),
       paleteNumeroSequencial: palete['numero_sequencial'] as int,
       numeroOp: ordem['numero_op'] as String,
     );
