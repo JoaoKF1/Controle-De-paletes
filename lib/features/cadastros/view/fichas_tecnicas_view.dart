@@ -22,6 +22,19 @@ final _composicoesParaFormProvider =
       return ref.watch(cadastrosRepositoryProvider).listarComposicoes();
     });
 
+/// Valida que o máximo de uma faixa não fica menor que o mínimo já
+/// digitado — os dois são opcionais, então só valida quando ambos estão
+/// preenchidos (o check constraint do banco é a garantia final, isso aqui
+/// só evita o erro feio chegando lá).
+String? _validarFaixaMax(TextEditingController minController, String? v) {
+  final minValor = double.tryParse(minController.text.replaceAll(',', '.'));
+  final maxValor = double.tryParse((v ?? '').replaceAll(',', '.'));
+  if (minValor != null && maxValor != null && maxValor < minValor) {
+    return 'Menor que o mínimo';
+  }
+  return null;
+}
+
 class FichasTecnicasView extends ConsumerWidget {
   const FichasTecnicasView({super.key});
 
@@ -120,11 +133,17 @@ class FichasTecnicasView extends ConsumerWidget {
     final colunaController = TextEditingController(
       text: existente?.coluna?.toString() ?? '',
     );
-    final cobbInternoController = TextEditingController(
-      text: existente?.cobbInterno?.toString() ?? '',
+    final cobbInternoMinController = TextEditingController(
+      text: existente?.cobbInternoMin?.toString() ?? '',
     );
-    final cobbExternoController = TextEditingController(
-      text: existente?.cobbExterno?.toString() ?? '',
+    final cobbInternoMaxController = TextEditingController(
+      text: existente?.cobbInternoMax?.toString() ?? '',
+    );
+    final cobbExternoMinController = TextEditingController(
+      text: existente?.cobbExternoMin?.toString() ?? '',
+    );
+    final cobbExternoMaxController = TextEditingController(
+      text: existente?.cobbExternoMax?.toString() ?? '',
     );
     final mullenController = TextEditingController(
       text: existente?.mullen?.toString() ?? '',
@@ -132,11 +151,17 @@ class FichasTecnicasView extends ConsumerWidget {
     final compressaoController = TextEditingController(
       text: existente?.compressao?.toString() ?? '',
     );
-    final resinaInternaController = TextEditingController(
-      text: existente?.resinaInterna ?? '',
+    final resinaInternaMinController = TextEditingController(
+      text: existente?.resinaInternaMin?.toString() ?? '',
     );
-    final resinaExternaController = TextEditingController(
-      text: existente?.resinaExterna ?? '',
+    final resinaInternaMaxController = TextEditingController(
+      text: existente?.resinaInternaMax?.toString() ?? '',
+    );
+    final resinaExternaMinController = TextEditingController(
+      text: existente?.resinaExternaMin?.toString() ?? '',
+    );
+    final resinaExternaMaxController = TextEditingController(
+      text: existente?.resinaExternaMax?.toString() ?? '',
     );
     final vinco1Controller = TextEditingController(
       text: existente?.vinco1Mm?.toString() ?? '',
@@ -326,23 +351,6 @@ class FichasTecnicasView extends ConsumerWidget {
                     const SizedBox(height: 12),
                     linhaDupla(
                       CampoRotulado(
-                        rotulo: 'Cobb interno',
-                        controller: cobbInternoController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                      ),
-                      CampoRotulado(
-                        rotulo: 'Cobb externo',
-                        controller: cobbExternoController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    linhaDupla(
-                      CampoRotulado(
                         rotulo: 'Mullen',
                         controller: mullenController,
                         keyboardType: const TextInputType.numberWithOptions(
@@ -357,15 +365,83 @@ class FichasTecnicasView extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 20),
+                    const RotuloSecaoMaiuscula(
+                      'Faixas de Cobb e Resina (mín/máx, opcional)',
+                    ),
+                    linhaDupla(
+                      CampoRotulado(
+                        rotulo: 'Cobb interno mín.',
+                        controller: cobbInternoMinController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                      CampoRotulado(
+                        rotulo: 'Cobb interno máx.',
+                        controller: cobbInternoMaxController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        validator: (v) =>
+                            _validarFaixaMax(cobbInternoMinController, v),
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     linhaDupla(
                       CampoRotulado(
-                        rotulo: 'Resina interna',
-                        controller: resinaInternaController,
+                        rotulo: 'Cobb externo mín.',
+                        controller: cobbExternoMinController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
                       ),
                       CampoRotulado(
-                        rotulo: 'Resina externa',
-                        controller: resinaExternaController,
+                        rotulo: 'Cobb externo máx.',
+                        controller: cobbExternoMaxController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        validator: (v) =>
+                            _validarFaixaMax(cobbExternoMinController, v),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    linhaDupla(
+                      CampoRotulado(
+                        rotulo: 'Resina interna mín.',
+                        controller: resinaInternaMinController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                      CampoRotulado(
+                        rotulo: 'Resina interna máx.',
+                        controller: resinaInternaMaxController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        validator: (v) =>
+                            _validarFaixaMax(resinaInternaMinController, v),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    linhaDupla(
+                      CampoRotulado(
+                        rotulo: 'Resina externa mín.',
+                        controller: resinaExternaMinController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                      CampoRotulado(
+                        rotulo: 'Resina externa máx.',
+                        controller: resinaExternaMaxController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        validator: (v) =>
+                            _validarFaixaMax(resinaExternaMinController, v),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -426,11 +502,17 @@ class FichasTecnicasView extends ConsumerWidget {
                   coluna: double.tryParse(
                     colunaController.text.replaceAll(',', '.'),
                   ),
-                  cobbInterno: double.tryParse(
-                    cobbInternoController.text.replaceAll(',', '.'),
+                  cobbInternoMin: double.tryParse(
+                    cobbInternoMinController.text.replaceAll(',', '.'),
                   ),
-                  cobbExterno: double.tryParse(
-                    cobbExternoController.text.replaceAll(',', '.'),
+                  cobbInternoMax: double.tryParse(
+                    cobbInternoMaxController.text.replaceAll(',', '.'),
+                  ),
+                  cobbExternoMin: double.tryParse(
+                    cobbExternoMinController.text.replaceAll(',', '.'),
+                  ),
+                  cobbExternoMax: double.tryParse(
+                    cobbExternoMaxController.text.replaceAll(',', '.'),
                   ),
                   mullen: double.tryParse(
                     mullenController.text.replaceAll(',', '.'),
@@ -438,12 +520,18 @@ class FichasTecnicasView extends ConsumerWidget {
                   compressao: double.tryParse(
                     compressaoController.text.replaceAll(',', '.'),
                   ),
-                  resinaInterna: resinaInternaController.text.trim().isEmpty
-                      ? null
-                      : resinaInternaController.text.trim(),
-                  resinaExterna: resinaExternaController.text.trim().isEmpty
-                      ? null
-                      : resinaExternaController.text.trim(),
+                  resinaInternaMin: double.tryParse(
+                    resinaInternaMinController.text.replaceAll(',', '.'),
+                  ),
+                  resinaInternaMax: double.tryParse(
+                    resinaInternaMaxController.text.replaceAll(',', '.'),
+                  ),
+                  resinaExternaMin: double.tryParse(
+                    resinaExternaMinController.text.replaceAll(',', '.'),
+                  ),
+                  resinaExternaMax: double.tryParse(
+                    resinaExternaMaxController.text.replaceAll(',', '.'),
+                  ),
                   vinco1Mm: double.tryParse(
                     vinco1Controller.text.replaceAll(',', '.'),
                   ),

@@ -2,18 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/repositories/paletes_repository.dart';
-import '../../../domain/entities/palete.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
 import '../../auth/controller/auth_controller.dart';
 import 'ordem_detalhe_view.dart';
-
-/// Tela operacional da Onduladeira: só OPs ainda não finalizadas, pra não
-/// misturar com o histórico. A busca com todas as OPs (abertas e
-/// concluídas) fica centralizada em Cadastros > Ordens de Produção.
-final _ordensAbertasProvider =
-    FutureProvider.autoDispose<List<OrdemProducaoInfo>>((ref) {
-      return ref.watch(paletesRepositoryProvider).listarOrdensAbertas();
-    });
 
 class OrdensAbertasView extends ConsumerWidget {
   const OrdensAbertasView({super.key});
@@ -21,7 +12,7 @@ class OrdensAbertasView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usuario = ref.watch(authControllerProvider).usuario;
-    final ordensAsync = ref.watch(_ordensAbertasProvider);
+    final ordensAsync = ref.watch(ordensAbertasProvider);
 
     return Scaffold(
       appBar: AppBar(

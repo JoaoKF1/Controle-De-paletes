@@ -7,6 +7,7 @@ import '../../auth/controller/auth_controller.dart';
 import '../../conversao/view/ordens_disponiveis_view.dart';
 import '../../dashboard/view/dashboard_view.dart';
 import '../../qualidade/view/fila_analise_view.dart';
+import '../../qualidade/view/testes_qualidade_view.dart';
 import '../../sincronizacao/view/pendencias_view.dart';
 import 'clientes_view.dart';
 import 'composicoes_view.dart';
@@ -172,10 +173,20 @@ class CadastrosHomeView extends ConsumerWidget {
                         _ItemMenu(
                           icone: Icons.shield_outlined,
                           titulo: 'Fila de análise',
-                          distintivo: 'Qualidade',
+                          distintivo: 'Revisão',
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => const FilaAnaliseView(),
+                            ),
+                          ),
+                        ),
+                        _ItemMenu(
+                          icone: Icons.fact_check_outlined,
+                          titulo: 'Testes de qualidade',
+                          distintivo: 'Qualidade',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const TestesQualidadeView(),
                             ),
                           ),
                         ),

@@ -7,6 +7,7 @@ import '../../../data/repositories/qualidade_repository.dart';
 import '../../../domain/entities/ocorrencia_qualidade.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
 import '../../auth/controller/auth_controller.dart';
+import 'testes_qualidade_view.dart';
 
 final _emAnaliseProvider =
     FutureProvider.autoDispose<List<OcorrenciaQualidade>>((ref) {
@@ -25,6 +26,13 @@ class FilaAnaliseView extends ConsumerWidget {
       appBar: AppBar(
         title: Text(usuario?.nome ?? 'Fila de análise'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.fact_check_outlined),
+            tooltip: 'Testes de qualidade',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TestesQualidadeView()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sair',

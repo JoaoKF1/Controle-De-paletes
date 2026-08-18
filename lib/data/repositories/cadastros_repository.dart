@@ -64,6 +64,15 @@ class CadastrosRepository {
     );
   }
 
+  Future<FichaTecnica> buscarFichaTecnicaPorId(String id) async {
+    final dados = await _client
+        .from('fichas_tecnicas')
+        .select()
+        .eq('id', id)
+        .single();
+    return FichaTecnica.fromMap(dados);
+  }
+
   Future<List<OrdemProducao>> listarOrdensProducao() async {
     final dados = await _client
         .from('ordens_producao')
@@ -74,6 +83,19 @@ class CadastrosRepository {
 
   Future<void> criarOrdemProducao(OrdemProducao op) {
     return _tentarOuEnfileirar('ordens_producao', op.toInsertMap());
+  }
+
+  /// Encerra a produção de uma OP — ação explícita da Onduladeira (nunca
+  /// automática por bater a quantidade pedida, ver plano técnico 9.1),
+  /// depois disso ela some das listas de "abertas" e não recebe mais
+  /// apontamento novo. Continua normalmente disponível pra teste de
+  /// qualidade (ver 9.6) — testar depois de fechada é o caso comum.
+  Future<void> encerrarOrdemProducao(String id) {
+    return _tentarOuEnfileirar(
+      'ordens_producao',
+      {'status': 'concluida'},
+      idParaAtualizar: id,
+    );
   }
 
   /// `idParaAtualizar` null = insert; preenchido = update daquele id.
