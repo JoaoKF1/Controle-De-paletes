@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -88,7 +90,9 @@ class QualidadeRepository {
   /// não dependem de ler o estado atual de nada no servidor antes (ver
   /// 9.13) — o tipo `testes_qualidade_criar` já é reconhecido pelo
   /// dispatcher genérico (`Sincronizador._enviar`) sem precisar de um caso
-  /// novo.
+  /// novo. Só dispara a notificação push quando o insert vai direto (não
+  /// quando cai pra fila offline — nesse caso ninguém precisa saber ainda,
+  /// porque o teste nem existe de verdade no servidor).
   Future<void> registrarTeste({
     required String ordemProducaoId,
     required String registradoPor,
@@ -115,6 +119,7 @@ class QualidadeRepository {
     };
     try {
       await _client.from('testes_qualidade').insert(dados).timeout(timeoutRede);
+      unawaited(_notificarTeste(ordemProducaoId));
     } catch (e) {
       if (!falhaDeRede(e)) rethrow;
       await _db.inserirOperacaoPendenteMap(
@@ -190,6 +195,22 @@ class QualidadeRepository {
       status: o['status'] as String,
       totalTestes: (testes as List).length,
     );
+  }
+
+  /// Dispara a Edge Function `notificar-teste-qualidade` (push pra
+  /// Onduladeira no turno atual — ver plano técnico, 9.6/12). Fire-and-
+  /// forget de propósito: notificação é um "a mais", nunca pode fazer o
+  /// registro do teste parecer ter falhado se o push não sair.
+  Future<void> _notificarTeste(String ordemProducaoId) async {
+    try {
+      await _client.functions.invoke(
+        'notificar-teste-qualidade',
+        body: {'ordem_producao_id': ordemProducaoId},
+      );
+    } catch (_) {
+      // Sem Firebase configurado, sem internet, etc. — o teste já foi
+      // salvo, a notificação é só um extra.
+    }
   }
 
   Future<List<TesteQualidade>> listarTestesDaOrdem(

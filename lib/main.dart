@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/app_config.dart';
 import 'core/router/auth_gate.dart';
 import 'core/theme/app_theme.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +19,13 @@ Future<void> main() async {
     url: AppConfig.supabaseUrl,
     publishableKey: AppConfig.supabaseAnonKey,
   );
+
+  // Firebase (push notification, ver plano técnico seção 12) só está
+  // configurado pra Android — no Windows (alvo principal de dev/admin)
+  // não tem app registrado no Firebase, então nem tenta inicializar.
+  if (Platform.isAndroid) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  }
 
   runApp(const ProviderScope(child: ControlePaletesApp()));
 }

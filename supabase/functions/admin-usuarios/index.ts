@@ -37,8 +37,8 @@ Deno.serve(async (req) => {
   const body = await req.json();
 
   if (body.acao === 'criar') {
-    const { login, senha, nome, perfil } = body;
-    if (!login || !senha || !nome || !perfil) {
+    const { login, senha, nome, perfil, turno } = body;
+    if (!login || !senha || !nome || !perfil || !turno) {
       return jsonResponse({ erro: 'Campos obrigatórios faltando' }, 400);
     }
     const loginNormalizado = String(login).trim().toLowerCase();
@@ -64,6 +64,7 @@ Deno.serve(async (req) => {
       login: loginNormalizado,
       nome,
       perfil,
+      turno,
       ativo: true,
     });
     if (profileError) {

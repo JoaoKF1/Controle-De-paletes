@@ -6,6 +6,12 @@ import '../../../domain/entities/usuario.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
 
 const _perfis = ['admin', 'onduladeira', 'conversao', 'qualidade'];
+const _turnos = ['primeiro', 'segundo', 'comercial'];
+const _rotulosTurno = {
+  'primeiro': '1º turno (07:00–16:48)',
+  'segundo': '2º turno (16:48–01:48)',
+  'comercial': 'Horário comercial',
+};
 
 final _usuariosProvider = FutureProvider.autoDispose<List<Usuario>>((ref) {
   return ref.watch(usuariosRepositoryProvider).listarUsuarios();
@@ -45,7 +51,8 @@ class UsuariosView extends ConsumerWidget {
                           ),
                   ),
                   subtitle: Text(
-                    '${u.login} · ${u.perfil}${u.ativo ? '' : ' · inativo'}',
+                    '${u.login} · ${u.perfil} · ${_rotulosTurno[u.turno]}'
+                    '${u.ativo ? '' : ' · inativo'}',
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _abrirAcoes(context, ref, u),
@@ -75,7 +82,7 @@ class UsuariosView extends ConsumerWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.edit),
-              title: const Text('Editar nome/perfil'),
+              title: const Text('Editar nome/perfil/turno'),
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 _abrirFormularioEditar(context, ref, usuario);
@@ -115,6 +122,7 @@ class UsuariosView extends ConsumerWidget {
     final senhaController = TextEditingController();
     final nomeController = TextEditingController();
     var perfilSelecionado = _perfis.first;
+    var turnoSelecionado = _turnos.first;
     String? erro;
     var salvando = false;
 
@@ -167,6 +175,20 @@ class UsuariosView extends ConsumerWidget {
                         .toList(),
                     onChanged: (v) => setState(() => perfilSelecionado = v!),
                   ),
+                  const SizedBox(height: 12),
+                  DropdownRotulado(
+                    rotulo: 'Turno',
+                    valor: turnoSelecionado,
+                    itens: _turnos
+                        .map(
+                          (t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(_rotulosTurno[t]!),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => turnoSelecionado = v!),
+                  ),
                   if (erro != null) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -199,6 +221,7 @@ class UsuariosView extends ConsumerWidget {
                               senha: senhaController.text,
                               nome: nomeController.text.trim(),
                               perfil: perfilSelecionado,
+                              turno: turnoSelecionado,
                             );
                         ref.invalidate(_usuariosProvider);
                         if (dialogContext.mounted) {
@@ -229,6 +252,7 @@ class UsuariosView extends ConsumerWidget {
     final formKey = GlobalKey<FormState>();
     final nomeController = TextEditingController(text: usuario.nome);
     var perfilSelecionado = usuario.perfil;
+    var turnoSelecionado = usuario.turno;
     var salvando = false;
 
     await showDialog<void>(
@@ -259,6 +283,20 @@ class UsuariosView extends ConsumerWidget {
                         .toList(),
                     onChanged: (v) => setState(() => perfilSelecionado = v!),
                   ),
+                  const SizedBox(height: 12),
+                  DropdownRotulado(
+                    rotulo: 'Turno',
+                    valor: turnoSelecionado,
+                    itens: _turnos
+                        .map(
+                          (t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(_rotulosTurno[t]!),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => turnoSelecionado = v!),
+                  ),
                 ],
               ),
             ),
@@ -280,6 +318,7 @@ class UsuariosView extends ConsumerWidget {
                             userId: usuario.id,
                             nome: nomeController.text.trim(),
                             perfil: perfilSelecionado,
+                            turno: turnoSelecionado,
                           );
                       ref.invalidate(_usuariosProvider);
                       if (dialogContext.mounted) {
