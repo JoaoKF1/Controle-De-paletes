@@ -11,14 +11,23 @@ class FichaTecnica {
 
   // Especificações de qualidade do produto — próprias de cada FT, não da
   // Composição (que é compartilhada entre várias FTs). Todas opcionais.
+  // Gramatura/Coluna/Mullen/Compressão são valor único (o teste de
+  // qualidade compara com tolerância de ±5% — ver
+  // domain/services/avaliacao_qualidade.dart). Cobb e Resina são cadastrados
+  // como faixa (mín/máx), porque na fábrica os dois sempre trabalham em
+  // faixa, nunca em valor único (ver plano técnico, 9.6).
   final double? gramatura;
   final double? coluna;
-  final double? cobbInterno;
-  final double? cobbExterno;
+  final double? cobbInternoMin;
+  final double? cobbInternoMax;
+  final double? cobbExternoMin;
+  final double? cobbExternoMax;
   final double? mullen;
   final double? compressao;
-  final String? resinaInterna;
-  final String? resinaExterna;
+  final double? resinaInternaMin;
+  final double? resinaInternaMax;
+  final double? resinaExternaMin;
+  final double? resinaExternaMax;
 
   // Vincos: linhas de dobra que viram a chapa plana em caixa — uma caixa
   // pode já sair vincada da Onduladeira. Até 5, todos opcionais, sem
@@ -52,12 +61,16 @@ class FichaTecnica {
     required this.ativo,
     this.gramatura,
     this.coluna,
-    this.cobbInterno,
-    this.cobbExterno,
+    this.cobbInternoMin,
+    this.cobbInternoMax,
+    this.cobbExternoMin,
+    this.cobbExternoMax,
     this.mullen,
     this.compressao,
-    this.resinaInterna,
-    this.resinaExterna,
+    this.resinaInternaMin,
+    this.resinaInternaMax,
+    this.resinaExternaMin,
+    this.resinaExternaMax,
     this.vinco1Mm,
     this.vinco2Mm,
     this.vinco3Mm,
@@ -84,12 +97,16 @@ class FichaTecnica {
     ativo: map['ativo'] as bool? ?? true,
     gramatura: (map['gramatura'] as num?)?.toDouble(),
     coluna: (map['coluna'] as num?)?.toDouble(),
-    cobbInterno: (map['cobb_interno'] as num?)?.toDouble(),
-    cobbExterno: (map['cobb_externo'] as num?)?.toDouble(),
+    cobbInternoMin: (map['cobb_interno_min'] as num?)?.toDouble(),
+    cobbInternoMax: (map['cobb_interno_max'] as num?)?.toDouble(),
+    cobbExternoMin: (map['cobb_externo_min'] as num?)?.toDouble(),
+    cobbExternoMax: (map['cobb_externo_max'] as num?)?.toDouble(),
     mullen: (map['mullen'] as num?)?.toDouble(),
     compressao: (map['compressao'] as num?)?.toDouble(),
-    resinaInterna: map['resina_interna'] as String?,
-    resinaExterna: map['resina_externa'] as String?,
+    resinaInternaMin: (map['resina_interna_min'] as num?)?.toDouble(),
+    resinaInternaMax: (map['resina_interna_max'] as num?)?.toDouble(),
+    resinaExternaMin: (map['resina_externa_min'] as num?)?.toDouble(),
+    resinaExternaMax: (map['resina_externa_max'] as num?)?.toDouble(),
     vinco1Mm: (map['vinco_1_mm'] as num?)?.toDouble(),
     vinco2Mm: (map['vinco_2_mm'] as num?)?.toDouble(),
     vinco3Mm: (map['vinco_3_mm'] as num?)?.toDouble(),
@@ -110,12 +127,16 @@ class FichaTecnica {
     'referencia': referencia,
     'gramatura': gramatura,
     'coluna': coluna,
-    'cobb_interno': cobbInterno,
-    'cobb_externo': cobbExterno,
+    'cobb_interno_min': cobbInternoMin,
+    'cobb_interno_max': cobbInternoMax,
+    'cobb_externo_min': cobbExternoMin,
+    'cobb_externo_max': cobbExternoMax,
     'mullen': mullen,
     'compressao': compressao,
-    'resina_interna': resinaInterna,
-    'resina_externa': resinaExterna,
+    'resina_interna_min': resinaInternaMin,
+    'resina_interna_max': resinaInternaMax,
+    'resina_externa_min': resinaExternaMin,
+    'resina_externa_max': resinaExternaMax,
     'vinco_1_mm': vinco1Mm,
     'vinco_2_mm': vinco2Mm,
     'vinco_3_mm': vinco3Mm,

@@ -4,12 +4,16 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/entities/ocorrencia_qualidade.dart';
 import '../../domain/entities/palete.dart';
+import '../../domain/entities/teste_qualidade.dart';
 import '../local/app_database.dart';
 import '../local/rede.dart';
 import '../remote/supabase_provider.dart';
 
 const _selectOcorrenciaComJoins =
     '*, paletes(numero_sequencial, ordens_producao(numero_op))';
+const _selectTesteComJoins =
+    '*, ordens_producao(numero_op, ficha_tecnica_id), '
+    'registrador:profiles!testes_qualidade_registrado_por_fkey(nome)';
 const _uuid = Uuid();
 
 /// Débito de saldo genérico: usado tanto quando a Qualidade reprova/segrega
@@ -77,6 +81,126 @@ class QualidadeRepository {
         dados: dados,
       );
     }
+  }
+
+  /// Teste de qualidade de uma OP (não de um palete — ver plano técnico,
+  /// 9.6): entra na fila offline igual aos outros cadastros/lançamentos que
+  /// não dependem de ler o estado atual de nada no servidor antes (ver
+  /// 9.13) — o tipo `testes_qualidade_criar` já é reconhecido pelo
+  /// dispatcher genérico (`Sincronizador._enviar`) sem precisar de um caso
+  /// novo.
+  Future<void> registrarTeste({
+    required String ordemProducaoId,
+    required String registradoPor,
+    double? gramaturaMedida,
+    double? colunaMedida,
+    double? cobbInternoMedido,
+    double? cobbExternoMedido,
+    double? mullenMedido,
+    double? compressaoMedida,
+    double? resinaInternaMedida,
+    double? resinaExternaMedida,
+  }) async {
+    final dados = {
+      'ordem_producao_id': ordemProducaoId,
+      'registrado_por': registradoPor,
+      'gramatura_medida': gramaturaMedida,
+      'coluna_medida': colunaMedida,
+      'cobb_interno_medido': cobbInternoMedido,
+      'cobb_externo_medido': cobbExternoMedido,
+      'mullen_medido': mullenMedido,
+      'compressao_medida': compressaoMedida,
+      'resina_interna_medida': resinaInternaMedida,
+      'resina_externa_medida': resinaExternaMedida,
+    };
+    try {
+      await _client.from('testes_qualidade').insert(dados).timeout(timeoutRede);
+    } catch (e) {
+      if (!falhaDeRede(e)) rethrow;
+      await _db.inserirOperacaoPendenteMap(
+        id: _uuid.v4(),
+        tipo: 'testes_qualidade_criar',
+        dados: dados,
+      );
+    }
+  }
+
+  /// OPs pra tela de Testes de qualidade, com cliente/unidade e a contagem
+  /// de testes já feitos em cada uma — 2 queries simples (OPs + contagem
+  /// de testes agrupada em Dart), no lugar de agregação no banco, mesmo
+  /// padrão de `_comProgressoOnduladeira` em `PaletesRepository`.
+  Future<List<OrdemParaTeste>> listarOrdensParaTeste() async {
+    final ops = await _client
+        .from('ordens_producao')
+        .select(
+          'id, numero_op, status, ficha_tecnica_id, '
+          'fichas_tecnicas(clientes(razao_social))',
+        )
+        .order('data_pedido', ascending: false);
+    final testes = await _client
+        .from('testes_qualidade')
+        .select('ordem_producao_id');
+    final contagem = <String, int>{};
+    for (final t in testes as List) {
+      final id = t['ordem_producao_id'] as String;
+      contagem[id] = (contagem[id] ?? 0) + 1;
+    }
+    return (ops as List).map((o) {
+      final numeroOp = o['numero_op'] as String;
+      final ft = o['fichas_tecnicas'] as Map<String, dynamic>;
+      final cliente = ft['clientes'] as Map<String, dynamic>;
+      final id = o['id'] as String;
+      return OrdemParaTeste(
+        id: id,
+        numeroOp: numeroOp,
+        fichaTecnicaId: o['ficha_tecnica_id'] as String,
+        clienteNome: cliente['razao_social'] as String,
+        unidadePedido: numeroOp.startsWith('803') ? 'chapas' : 'caixas',
+        status: o['status'] as String,
+        totalTestes: contagem[id] ?? 0,
+      );
+    }).toList();
+  }
+
+  /// Mesmo formato de `listarOrdensParaTeste`, mas só pra 1 OP — usado pelo
+  /// atalho que pula direto pros testes daquela OP a partir do detalhe da
+  /// Onduladeira, sem passar pela lista/busca de Testes de qualidade.
+  Future<OrdemParaTeste> buscarOrdemParaTeste(String ordemProducaoId) async {
+    final o = await _client
+        .from('ordens_producao')
+        .select(
+          'id, numero_op, status, ficha_tecnica_id, '
+          'fichas_tecnicas(clientes(razao_social))',
+        )
+        .eq('id', ordemProducaoId)
+        .single();
+    final numeroOp = o['numero_op'] as String;
+    final ft = o['fichas_tecnicas'] as Map<String, dynamic>;
+    final cliente = ft['clientes'] as Map<String, dynamic>;
+    final testes = await _client
+        .from('testes_qualidade')
+        .select('id')
+        .eq('ordem_producao_id', ordemProducaoId);
+    return OrdemParaTeste(
+      id: o['id'] as String,
+      numeroOp: numeroOp,
+      fichaTecnicaId: o['ficha_tecnica_id'] as String,
+      clienteNome: cliente['razao_social'] as String,
+      unidadePedido: numeroOp.startsWith('803') ? 'chapas' : 'caixas',
+      status: o['status'] as String,
+      totalTestes: (testes as List).length,
+    );
+  }
+
+  Future<List<TesteQualidade>> listarTestesDaOrdem(
+    String ordemProducaoId,
+  ) async {
+    final dados = await _client
+        .from('testes_qualidade')
+        .select(_selectTesteComJoins)
+        .eq('ordem_producao_id', ordemProducaoId)
+        .order('criado_em');
+    return (dados as List).map((e) => TesteQualidade.fromMap(e)).toList();
   }
 
   Future<List<OcorrenciaQualidade>> listarEmAnalise() async {

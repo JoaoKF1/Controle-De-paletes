@@ -102,6 +102,7 @@ O schema real do banco vive em `supabase/migrations/` — esse é o histórico v
 - **`paletes`**: cada apontamento — OP, número sequencial (único por OP), `altura_medida_mm` (Onduladeira) ou `camadas` (Conversão) — um dos dois, nunca os dois —, quantidade calculada, `tipo_chapa`, `setor_origem` (`onduladeira`/`conversao`), código de barras (único globalmente, é o valor impresso na etiqueta), responsável, data/hora, e `revisado_por` (quem debitou saldo por último — ver 9.4).
 - **`refugos`**: chapa perdida/descartada, vinculada à OP (não a um palete específico) — ver 9.3.
 - **`ocorrencias_qualidade`** e **`historico_ocorrencia`**: ocorrências abertas sobre um palete e o histórico de mudança de status — ver 9.4.
+- **`testes_qualidade`**: teste de qualidade de uma OP (Sprint 9, ver 9.6) — os 8 campos medidos, todos opcionais, mais quem registrou e quando.
 
 Observações:
 - `paletes.numero_sequencial` é único **por OP** (não globalmente).
@@ -109,7 +110,9 @@ Observações:
 
 ### 5.1 Campos de qualidade da Ficha Técnica
 
-Colunas adicionadas depois do Sprint 1, pra cobrir as especificações técnicas do produto (ver 9.6): `gramatura`, `coluna`, `cobb_interno`, `cobb_externo`, `mullen`, `compressao`, `resina_interna`, `resina_externa`. Todas opcionais (nullable) — nem toda FT precisa preencher tudo de cara.
+Colunas adicionadas depois do Sprint 1, pra cobrir as especificações técnicas do produto (ver 9.6): `gramatura`, `coluna`, `cobb_interno_min/max`, `cobb_externo_min/max`, `mullen`, `compressao`, `resina_interna_min/max`, `resina_externa_min/max`. Todas opcionais (nullable) — nem toda FT precisa preencher tudo de cara.
+
+**Cobb e Resina são cadastrados como faixa (mín/máx), não valor único** — na fábrica os dois sempre trabalham em faixa (ex: Cobb interno 15 a 22), nunca num valor fixo. Resina também virou numérico (era texto livre até o Sprint 9). Gramatura, Coluna, Mullen e Compressão continuam valor único (ver 9.6, comparação por tolerância).
 
 **Medida da chapa** era um único campo de texto livre (`medida_chapa`, ex: `"733 x 1.964"`) — virou 2 colunas numéricas, `comprimento_mm` e `largura_mm`, ambas obrigatórias. A migração que fez a troca (nesse passe de design pré-piloto) leu o texto existente pra preencher as duas colunas novas antes de derrubar a antiga, então nenhuma FT já cadastrada perdeu dado.
 
@@ -164,7 +167,7 @@ Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer
 | 6 | Geração e impressão de etiqueta (PDF + rede WiFi) — **adiado**: layout da etiqueta depende de aprovação da gerência. Não bloqueia nenhum sprint seguinte (as ações que dependeriam de ler código de barras já funcionam por toque na lista — ver 9.5) |
 | 7 | Dashboard e relatórios (desktop) — **entregue**. Acessível pelo Admin em Cadastros. KPIs (OPs abertas/concluídas, ocorrências em análise) + produção por dia/setor (linha) + refugo por motivo (barra), com `fl_chart` |
 | 8 | Modo offline (SQLite local + sincronização) — **entregue**. Fase 1: cache de OPs/paletes + apontamento offline pra Onduladeira e Conversão (ver 9.12). Fase 2: refugo, pedir revisão de qualidade e cadastros do Admin, com fila genérica (ver 9.13) — o que depende de saldo atual do palete (segregar/resolver/corrigir/excluir) continua exigindo conexão de propósito |
-| 9 | Testes de qualidade nas chapas: tela pra Qualidade registrar os resultados **medidos** num palete/OP, comparando com os valores-alvo já cadastrados na Ficha Técnica (gramatura, coluna, Cobb interno/externo, Mullen, compressão, resina interna/externa — ver 9.6). Escopo (o quê exatamente é registrado, por palete ou por OP, e se há aprovação automática por faixa de tolerância) ainda a alinhar antes de começar a codar, seguindo o fluxo de sempre |
+| 9 | Testes de qualidade nas chapas: tela pra Qualidade registrar os resultados **medidos** de uma OP, comparando com os valores-alvo/faixa já cadastrados na Ficha Técnica, com selo de aprovado/reprovado por campo (ver 9.6). **Parte 1 implementada** (cadastro de faixa mín/máx pra Cobb/Resina na FT, tela de registro/histórico de teste, avaliação automática) — validando com o usuário. **Parte 2 pendente**: notificação push (Onduladeira/Gestão/Qualidade) ao registrar um teste, respeitando o turno de cada usuário |
 | 10 | Testes com usuários piloto (Onduladeira, Conversão, Qualidade), ajustes finais — passe de design/UX já feito antes de começar (ver seção 11), incluindo a correção da semântica de `quantidade_pedida` por setor (ver 9.1) e o primeiro APK Android gerado e testado (ver seção 12) |
 
 ---
@@ -194,6 +197,8 @@ Conversão:   camadas × pacotes_por_camada da FT × pecas_por_pacote da FT
 
 - **Onduladeira** (`OrdemProducaoInfo.alvoChapasOnduladeira`): quantas chapas ela precisa produzir pra alimentar a Conversão o bastante — `quantidade_pedida ÷ arranjo` (arredondado pra cima). Ex.: pedido de 10.000 caixas com arranjo 2 (2 caixas por chapa) → a Onduladeira só precisa de 5.000 chapas. Numa OP 803 (sem `arranjo` cadastrado, tratado como 1) o alvo é a própria `quantidade_pedida` — nada muda ali. O cartão "Produzido nesta OP" no detalhe da Onduladeira soma só paletes com `setor_origem = 'onduladeira'` (nunca as caixas da Conversão, que são outra unidade) contra esse alvo.
 - **Conversão** (cartão "Progresso do pedido", ao lado do de "Chapas disponíveis"): usa `quantidade_pedida` direto, sem dividir — é a contagem de caixas que ela mesma está produzindo rumo ao total pedido.
+
+**Encerramento da OP (`status` vira `concluida`) é sempre uma ação explícita da Onduladeira, nunca automática por bater a quantidade pedida** — em alguns casos a quantidade apontada passa do pedido (a última pilha raramente fecha exatamente no número), então não dá pra fechar sozinho só por atingir o alvo. Duas formas de encerrar, mesmo efeito: o botão "Encerrar produção" no detalhe da OP (`CadastrosRepository.encerrarOrdemProducao`), ou marcar "Este é o último palete desta OP" ao confirmar um apontamento (encerra logo depois de gravar aquele palete). Depois de encerrada, a OP some da lista de "Ordens em aberto" e não aceita mais apontamento novo, mas continua acessível pra busca/histórico (ver 9.2) e pra teste de qualidade (ver 9.6) — testar depois de fechada é o caso comum.
 
 Na tela de detalhe da OP (Conversão) aparece **Chapas total** e **Chapas disponíveis**. `chapas_total` é a soma do `saldo_disponivel` de tudo que a Onduladeira já apontou nessa OP (líquido de reprovação de qualidade do lado dela). `chapas_disponiveis` é esse total menos as chapas já consumidas pela Conversão — e consumo **não** é sempre 1 caixa = 1 chapa: depende do `arranjo` da FT (ver 5.3), quantas caixas saem de 1 chapa no arranjo de impressão. As caixas já apontadas (soma de `quantidade_calculada` de tudo que a Conversão apontou nessa OP) são convertidas de volta em chapas dividindo pelo `arranjo` (arredondando pra cima, `ceil`, pra nunca superestimar o que sobrou). FT sem `arranjo` cadastrado usa 1 (uma chapa = uma caixa, igual ao comportamento antes desse campo existir). Fica vermelho se ficar negativo (apontou mais caixa do que tinha chapa disponível), mas isso é só aviso visual — não bloqueia o apontamento. O apontamento da Conversão continua sendo feito palete a palete, quando aquele palete estiver completo.
 
@@ -231,9 +236,18 @@ Ao ler o código de barras de um palete, as ações disponíveis mudam conforme 
 
 `codigo_barras` só existe de verdade a partir do Sprint 6 (etiqueta impressa), então por enquanto essas ações ficam atrás de **tocar no palete na lista** (nas telas de detalhe de OP), não de uma leitura de câmera de verdade. "Pedir revisão" fica disponível pra qualquer perfil autenticado que tocar num palete (não só Qualidade), porque a regra de negócio em 9.4 diz que qualquer setor pode abrir ocorrência — as outras três ações (segregar/corrigir/excluir) ficam restritas a quem tem o perfil certo pro palete em questão. Quando o Sprint 6 trouxer leitura de câmera de verdade, ela deve preencher o mesmo fluxo, só trocando "tocar na lista" por "escanear".
 
-### 9.6 Campos de qualidade da Ficha Técnica
+### 9.6 Campos de qualidade da Ficha Técnica e teste de qualidade (Sprint 9)
 
 Cada Ficha Técnica tem especificações técnicas próprias do produto (não da Composição/tipo de onda, que é compartilhada entre várias FTs): `Gramatura`, `Coluna`, `Cobb Interno`, `Cobb Externo`, `Mullen`, `Compressão`, `Resina Interna`, `Resina Externa`. Todos opcionais no cadastro — ver 5.1.
+
+**Teste de qualidade** (`testes_qualidade`): a Qualidade registra os valores medidos de uma OP — sempre por **OP**, nunca por palete específico, porque o teste representa uma amostragem do lote, não uma chapa isolada. Os 8 campos do teste são todos opcionais e independentes entre si: nem toda chapa tem, por exemplo, Cobb ou Resina testado, então não faz sentido obrigar o preenchimento de tudo pra salvar um teste.
+
+O app compara cada campo medido com o alvo/faixa da FT daquela OP e mostra um **selo por campo** (aprovado/reprovado/neutro) — não existe um selo único resumindo o teste inteiro, porque cada campo é independente. Neutro é o selo de um campo que não foi medido nesse teste, ou cuja FT não tem alvo/faixa cadastrado pra comparar (não dá pra aprovar nem reprovar sem ter o que comparar). A regra de aprovação muda por campo:
+
+- **Cobb interno/externo e Resina interna/externa** (cadastrados como faixa mín/máx na FT — ver 5.1): aprovado se o valor medido cair dentro da faixa `[mín, máx]`, reprovado se ficar fora (pra cima ou pra baixo).
+- **Gramatura, Coluna, Mullen, Compressão** (valor único na FT): aprovado se o medido estiver dentro de **±5% de tolerância** do valor cadastrado — fixo no código por enquanto (`toleranciaPadrao` em `lib/domain/services/avaliacao_qualidade.dart`), sem cadastro de tolerância por campo ainda.
+
+A Parte 2 desse sprint (ainda não implementada) adiciona notificação push quando um teste é registrado, pros perfis Onduladeira/Gestão/Qualidade, respeitando o turno cadastrado de cada usuário (1º turno 07:00–16:48, 2º turno 16:48–01:48).
 
 ### 9.7 Login por usuário, não por email
 

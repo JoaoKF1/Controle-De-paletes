@@ -443,6 +443,16 @@ final paletesRepositoryProvider = Provider<PaletesRepository>((ref) {
   return PaletesRepository(client, db);
 });
 
+/// Só OPs ainda não finalizadas, pra não misturar com o histórico — a
+/// busca com todas as OPs (abertas e concluídas) fica centralizada em
+/// Cadastros > Ordens de Produção. Público (não só de `OrdensAbertasView`)
+/// porque `OrdemDetalheView` precisa invalidar depois de encerrar uma OP.
+final ordensAbertasProvider = FutureProvider.autoDispose<List<OrdemProducaoInfo>>((
+  ref,
+) {
+  return ref.watch(paletesRepositoryProvider).listarOrdensAbertas();
+});
+
 /// Compartilhado entre a tela de detalhe da OP e a tela de apontamento —
 /// as duas precisam da mesma lista (uma pra exibir, a outra pra calcular
 /// "produzido nesta OP" e o próximo número de palete).

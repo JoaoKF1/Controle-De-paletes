@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/services/avaliacao_qualidade.dart';
+
 /// Peças visuais compartilhadas pelos formulários de apontamento e pelas
 /// telas de OP — mesma linguagem em todo o app: rótulo discreto acima de
 /// cada campo, cartão de destaque com barra de progresso, cartão central
@@ -335,6 +337,45 @@ class CartaoResultado extends StatelessWidget {
               color: colorScheme.primary,
               fontWeight: FontWeight.bold,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Selo de aprovado/reprovado/neutro pra um campo de teste de qualidade —
+/// neutro (cinza) quando o campo não foi medido ou a FT não tem alvo/faixa
+/// cadastrado pra comparar, nunca um selo único pro teste inteiro (ver
+/// plano técnico, 9.6).
+class SeloAprovacao extends StatelessWidget {
+  final ResultadoCampo resultado;
+  const SeloAprovacao(this.resultado, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final (cor, icone, texto) = switch (resultado) {
+      ResultadoCampo.aprovado => (Colors.green, Icons.check_circle, 'Aprovado'),
+      ResultadoCampo.reprovado => (colorScheme.error, Icons.cancel, 'Reprovado'),
+      ResultadoCampo.neutro => (colorScheme.onSurfaceVariant, Icons.remove_circle_outline, '—'),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: cor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icone, size: 14, color: cor),
+          const SizedBox(width: 4),
+          Text(
+            texto,
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: cor, fontWeight: FontWeight.w600),
           ),
         ],
       ),
