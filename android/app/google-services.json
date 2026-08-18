@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "583542602155",
+    "project_id": "controle-de-paletes-36a14",
+    "storage_bucket": "controle-de-paletes-36a14.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:583542602155:android:ecaf8886305e6831e5baee",
+        "android_client_info": {
+          "package_name": "com.funaki.controle_paletes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA6HIy8-wmnQb5U_HD-Ioy53VAjUu3Lr-w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

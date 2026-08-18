@@ -22,6 +22,7 @@ class UsuariosRepository {
     required String senha,
     required String nome,
     required String perfil,
+    required String turno,
   }) async {
     final res = await _client.functions.invoke(
       'admin-usuarios',
@@ -31,6 +32,7 @@ class UsuariosRepository {
         'senha': senha,
         'nome': nome,
         'perfil': perfil,
+        'turno': turno,
       },
     );
     if (res.status != 200) {
@@ -55,10 +57,11 @@ class UsuariosRepository {
     required String userId,
     required String nome,
     required String perfil,
+    required String turno,
   }) {
     return _client
         .from('profiles')
-        .update({'nome': nome, 'perfil': perfil})
+        .update({'nome': nome, 'perfil': perfil, 'turno': turno})
         .eq('id', userId);
   }
 

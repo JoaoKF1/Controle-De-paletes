@@ -1,5 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+ exige essa permissão em runtime pra mostrar notificação
+         de push (Firebase Messaging) — pedida via requestPermission() no
+         PushNotificationsService (ver plano técnico, seção 12). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="controle_paletes"
         android:name="${applicationName}"

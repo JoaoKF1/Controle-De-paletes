@@ -1,7 +1,10 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 
 import '../../../data/repositories/auth_repository.dart';
+import '../../../data/services/push_notifications_service.dart';
 import '../../../domain/entities/usuario.dart';
 
 enum AuthStatus { carregando, autenticado, naoAutenticado, erro }
@@ -87,6 +90,10 @@ class AuthController extends Notifier<AuthControllerState> {
         return;
       }
       state = AuthControllerState.autenticado(usuario);
+      // Fire-and-forget: registra o token de push desse aparelho (só faz
+      // algo de verdade no Android — ver PushNotificationsService). Nunca
+      // deve travar nem falhar o login.
+      unawaited(ref.read(pushNotificationsServiceProvider).registrar(usuario.id));
     } catch (_) {
       state = const AuthControllerState.erro(
         'Login feito, mas não encontramos seu perfil cadastrado. Fale com o Admin.',
