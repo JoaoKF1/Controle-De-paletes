@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../domain/entities/ficha_tecnica.dart';
 import '../../../domain/entities/ordem_producao.dart';
@@ -39,7 +40,8 @@ class OrdensProducaoView extends ConsumerWidget {
       ),
       body: opsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
+        error: (erro, _) =>
+            Center(child: Text('Erro ao carregar: ${mensagemErro(erro)}')),
         data: (ops) {
           if (ops.isEmpty) {
             return const Center(child: Text('Nenhuma OP cadastrada ainda.'));
@@ -72,7 +74,13 @@ class OrdensProducaoView extends ConsumerWidget {
   }
 
   Future<void> _abrirFormulario(BuildContext context, WidgetRef ref) async {
-    final fichas = await ref.read(_fichasParaFormProvider.future);
+    final List<FichaTecnica> fichas;
+    try {
+      fichas = await ref.read(_fichasParaFormProvider.future);
+    } catch (e) {
+      if (context.mounted) await mostrarErro(context, e);
+      return;
+    }
 
     if (!context.mounted) return;
 
@@ -163,9 +171,16 @@ class OrdensProducaoView extends ConsumerWidget {
                   dataPedido: DateTime.now(),
                   status: 'aberta',
                 );
-                await ref
-                    .read(cadastrosRepositoryProvider)
-                    .criarOrdemProducao(op);
+                try {
+                  await ref
+                      .read(cadastrosRepositoryProvider)
+                      .criarOrdemProducao(op);
+                } catch (e) {
+                  if (dialogContext.mounted) {
+                    await mostrarErro(dialogContext, e);
+                  }
+                  return;
+                }
                 ref.invalidate(_opsProvider);
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               },

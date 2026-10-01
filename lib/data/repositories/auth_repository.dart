@@ -18,12 +18,10 @@ class AuthRepository {
   Session? get sessaoAtual => _client.auth.currentSession;
 
   Future<void> entrar({required String login, required String senha}) {
-    final email = _emailTecnico(login);
-    // ignore: avoid_print
-    print(
-      '[DEBUG] tentando login com email="$email" senha_length=${senha.length}',
+    return _client.auth.signInWithPassword(
+      email: _emailTecnico(login),
+      password: senha,
     );
-    return _client.auth.signInWithPassword(email: email, password: senha);
   }
 
   Future<void> sair() {

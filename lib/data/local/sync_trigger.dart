@@ -1,4 +1,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'sincronizador.dart';
@@ -10,13 +11,22 @@ final syncTriggerProvider = Provider<void>((ref) {
   final sincronizador = ref.watch(sincronizadorProvider);
   // Tenta uma vez já na entrada, caso tenha ficado pendente de uma sessão
   // anterior que fechou ainda offline.
-  sincronizador.sincronizarTudo();
+  _sincronizarSemQuebrar(sincronizador);
 
   final assinatura = Connectivity().onConnectivityChanged.listen((resultados) {
     final online = resultados.any((r) => r != ConnectivityResult.none);
     if (online) {
-      sincronizador.sincronizarTudo();
+      _sincronizarSemQuebrar(sincronizador);
     }
   });
   ref.onDispose(assinatura.cancel);
 });
+
+/// Roda solta (ninguém aguarda) — erro de item já fica gravado na própria
+/// fila; aqui só evita que uma falha inesperada (ex.: banco local) vire
+/// exceção não tratada sem ninguém pra ver.
+void _sincronizarSemQuebrar(Sincronizador sincronizador) {
+  sincronizador.sincronizarTudo().catchError((Object e) {
+    debugPrint('Falha ao sincronizar pendências: $e');
+  });
+}

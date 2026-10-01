@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/paletes_repository.dart';
 import '../../../data/repositories/qualidade_repository.dart';
 import '../../../domain/entities/ocorrencia_qualidade.dart';
@@ -42,7 +43,8 @@ class FilaAnaliseView extends ConsumerWidget {
       ),
       body: filaAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
+        error: (erro, _) =>
+            Center(child: Text('Erro ao carregar: ${mensagemErro(erro)}')),
         data: (fila) {
           if (fila.isEmpty) {
             return const Center(child: Text('Nenhuma ocorrência em análise.'));

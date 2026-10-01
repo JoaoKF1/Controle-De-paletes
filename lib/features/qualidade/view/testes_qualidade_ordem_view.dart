@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../data/repositories/qualidade_repository.dart';
 import '../../../domain/entities/ficha_tecnica.dart';
@@ -10,14 +11,12 @@ import '../../../shared/widgets/apontamento_kit.dart';
 import '../../auth/controller/auth_controller.dart';
 import 'testes_qualidade_detalhe_view.dart';
 
-final _fichaDaOrdemProvider = FutureProvider.autoDispose.family<FichaTecnica, String>((
-  ref,
-  fichaTecnicaId,
-) {
-  return ref
-      .read(cadastrosRepositoryProvider)
-      .buscarFichaTecnicaPorId(fichaTecnicaId);
-});
+final _fichaDaOrdemProvider = FutureProvider.autoDispose
+    .family<FichaTecnica, String>((ref, fichaTecnicaId) {
+      return ref
+          .read(cadastrosRepositoryProvider)
+          .buscarFichaTecnicaPorId(fichaTecnicaId);
+    });
 
 final _testesDaOrdemProvider = FutureProvider.autoDispose
     .family<List<TesteQualidade>, String>((ref, ordemProducaoId) {
@@ -105,7 +104,8 @@ class TestesQualidadeOrdemView extends ConsumerWidget {
       ),
       body: testesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
+        error: (erro, _) =>
+            Center(child: Text('Erro ao carregar: ${mensagemErro(erro)}')),
         data: (testes) {
           if (testes.isEmpty) {
             return const Center(
@@ -133,9 +133,15 @@ class TestesQualidadeOrdemView extends ConsumerWidget {
                   subtitle: Text(_dataExibicao(t.criadoEm)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () async {
-                    final ficha = await ref.read(
-                      _fichaDaOrdemProvider(ordem.fichaTecnicaId).future,
-                    );
+                    final FichaTecnica ficha;
+                    try {
+                      ficha = await ref.read(
+                        _fichaDaOrdemProvider(ordem.fichaTecnicaId).future,
+                      );
+                    } catch (e) {
+                      if (context.mounted) await mostrarErro(context, e);
+                      return;
+                    }
                     if (!context.mounted) return;
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -235,22 +241,32 @@ class TestesQualidadeOrdemView extends ConsumerWidget {
                     : () async {
                         setState(() => salvando = true);
                         final valores = lerValores();
-                        final usuarioId =
-                            ref.read(authControllerProvider).usuario!.id;
-                        await ref
-                            .read(qualidadeRepositoryProvider)
-                            .registrarTeste(
-                              ordemProducaoId: ordem.id,
-                              registradoPor: usuarioId,
-                              gramaturaMedida: valores['gramatura'],
-                              colunaMedida: valores['coluna'],
-                              cobbInternoMedido: valores['cobbInterno'],
-                              cobbExternoMedido: valores['cobbExterno'],
-                              mullenMedido: valores['mullen'],
-                              compressaoMedida: valores['compressao'],
-                              resinaInternaMedida: valores['resinaInterna'],
-                              resinaExternaMedida: valores['resinaExterna'],
-                            );
+                        final usuarioId = ref
+                            .read(authControllerProvider)
+                            .usuario!
+                            .id;
+                        try {
+                          await ref
+                              .read(qualidadeRepositoryProvider)
+                              .registrarTeste(
+                                ordemProducaoId: ordem.id,
+                                registradoPor: usuarioId,
+                                gramaturaMedida: valores['gramatura'],
+                                colunaMedida: valores['coluna'],
+                                cobbInternoMedido: valores['cobbInterno'],
+                                cobbExternoMedido: valores['cobbExterno'],
+                                mullenMedido: valores['mullen'],
+                                compressaoMedida: valores['compressao'],
+                                resinaInternaMedida: valores['resinaInterna'],
+                                resinaExternaMedida: valores['resinaExterna'],
+                              );
+                        } catch (e) {
+                          if (dialogContext.mounted) {
+                            setState(() => salvando = false);
+                            await mostrarErro(dialogContext, e);
+                          }
+                          return;
+                        }
                         ref.invalidate(_testesDaOrdemProvider(ordem.id));
                         if (dialogContext.mounted) {
                           Navigator.of(dialogContext).pop();

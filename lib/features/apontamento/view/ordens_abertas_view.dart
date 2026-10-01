@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/paletes_repository.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
 import '../../auth/controller/auth_controller.dart';
@@ -27,7 +28,8 @@ class OrdensAbertasView extends ConsumerWidget {
       ),
       body: ordensAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
+        error: (erro, _) =>
+            Center(child: Text('Erro ao carregar: ${mensagemErro(erro)}')),
         data: (ordens) {
           if (ordens.isEmpty) {
             return const Center(child: Text('Nenhuma OP em aberto.'));

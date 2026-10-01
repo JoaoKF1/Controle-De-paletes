@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/qualidade_repository.dart';
 import '../../../domain/entities/teste_qualidade.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
 import 'testes_qualidade_ordem_view.dart';
 
-final _ordensParaTesteProvider = FutureProvider.autoDispose<List<OrdemParaTeste>>((
-  ref,
-) {
-  return ref.watch(qualidadeRepositoryProvider).listarOrdensParaTeste();
-});
+final _ordensParaTesteProvider =
+    FutureProvider.autoDispose<List<OrdemParaTeste>>((ref) {
+      return ref.watch(qualidadeRepositoryProvider).listarOrdensParaTeste();
+    });
 
 /// Ponto de entrada dos testes de qualidade: em vez de listar testes direto,
 /// lista as OPs (igual ao resto do app, que é sempre OP-cêntrico —
@@ -65,15 +65,18 @@ class _TestesQualidadeViewState extends ConsumerState<TestesQualidadeView> {
                 child: ordensAsync.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (erro, _) =>
-                      Center(child: Text('Erro ao carregar: $erro')),
+                  error: (erro, _) => Center(
+                    child: Text('Erro ao carregar: ${mensagemErro(erro)}'),
+                  ),
                   data: (ordens) {
                     final filtradas = _filtro.isEmpty
                         ? ordens
                         : ordens
                               .where(
                                 (o) =>
-                                    o.numeroOp.toLowerCase().contains(_filtro) ||
+                                    o.numeroOp.toLowerCase().contains(
+                                      _filtro,
+                                    ) ||
                                     o.clienteNome.toLowerCase().contains(
                                       _filtro,
                                     ),
@@ -124,13 +127,17 @@ class _CartaoOrdem extends StatelessWidget {
     return CartaoLista(
       leading: CircleAvatar(
         backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.6),
-        child: Icon(Icons.science_outlined, color: colorScheme.primary, size: 20),
+        child: Icon(
+          Icons.science_outlined,
+          color: colorScheme.primary,
+          size: 20,
+        ),
       ),
       title: Text(ordem.numeroOp),
       subtitle: Text(
         '${ordem.unidadePedido} · '
         '${ordem.totalTestes == 0 ? 'nenhum teste' : '${ordem.totalTestes} '
-              'teste${ordem.totalTestes == 1 ? '' : 's'}'}',
+                  'teste${ordem.totalTestes == 1 ? '' : 's'}'}',
       ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => Navigator.of(context).push(

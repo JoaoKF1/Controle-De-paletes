@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/paletes_repository.dart';
 import '../../../domain/entities/palete.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
@@ -23,7 +24,8 @@ class PaletesApontadosView extends ConsumerWidget {
       appBar: AppBar(title: Text('Paletes apontados · OP ${ordem.numeroOp}')),
       body: paletesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
+        error: (erro, _) =>
+            Center(child: Text('Erro ao carregar: ${mensagemErro(erro)}')),
         data: (paletes) {
           if (paletes.isEmpty) {
             return const Center(child: Text('Nenhum palete apontado ainda.'));

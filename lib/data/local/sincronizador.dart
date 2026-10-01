@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/utils/mensagem_erro.dart';
 import '../remote/supabase_provider.dart';
 import '../repositories/paletes_repository.dart';
 import 'app_database.dart';
@@ -32,7 +33,10 @@ class Sincronizador {
         await _enviar(op.tipo, dados);
         await _db.removerOperacaoPendente(op.id);
       } catch (e) {
-        await _db.marcarErroOperacao(op.id, e.toString());
+        // Caiu a rede no meio: não é erro do item, só continua pendente —
+        // para aqui e tenta tudo de novo quando a conexão voltar.
+        if (falhaDeRede(e)) break;
+        await _db.marcarErroOperacao(op.id, mensagemErro(e));
       }
     }
   }

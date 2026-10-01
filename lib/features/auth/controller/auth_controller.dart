@@ -1,8 +1,9 @@
 import 'dart:async' show unawaited;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/push_notifications_service.dart';
 import '../../../domain/entities/usuario.dart';
@@ -65,17 +66,26 @@ class AuthController extends Notifier<AuthControllerState> {
         return;
       }
       await _carregarPerfil(sessao.user.id);
-    } on AuthException catch (e) {
-      state = AuthControllerState.erro(e.message);
-    } catch (_) {
-      state = const AuthControllerState.erro(
-        'Erro inesperado. Tente novamente.',
-      );
+    } catch (e) {
+      // Sem conexão, o Supabase Auth devolve um AuthException com a falha
+      // de rede no texto — mensagemErro() trata isso antes de cair na
+      // mensagem crua do Auth (que vem em inglês).
+      state = AuthControllerState.erro(mensagemErro(e));
     }
   }
 
   Future<void> sair() async {
-    await _repository.sair();
+    final usuario = state.usuario;
+    if (usuario != null) {
+      // Aparelho deixa de receber push desse usuário depois do logout.
+      await ref.read(pushNotificationsServiceProvider).remover(usuario.id);
+    }
+    try {
+      await _repository.sair();
+    } catch (_) {
+      // Sem conexão o signOut remoto falha, mas a sessão local já é
+      // apagada — o usuário sai do mesmo jeito.
+    }
     state = const AuthControllerState.naoAutenticado();
   }
 
@@ -93,11 +103,21 @@ class AuthController extends Notifier<AuthControllerState> {
       // Fire-and-forget: registra o token de push desse aparelho (só faz
       // algo de verdade no Android — ver PushNotificationsService). Nunca
       // deve travar nem falhar o login.
-      unawaited(ref.read(pushNotificationsServiceProvider).registrar(usuario.id));
-    } catch (_) {
-      state = const AuthControllerState.erro(
-        'Login feito, mas não encontramos seu perfil cadastrado. Fale com o Admin.',
+      unawaited(
+        ref.read(pushNotificationsServiceProvider).registrar(usuario.id),
       );
+    } on PostgrestException catch (e) {
+      // PGRST116 = `.single()` não achou nenhuma linha: o usuário existe no
+      // Auth mas não tem perfil em `profiles`. Qualquer outro código é
+      // problema do servidor, não de cadastro — não esconde a causa.
+      state = AuthControllerState.erro(
+        e.code == 'PGRST116'
+            ? 'Login feito, mas não encontramos seu perfil cadastrado. '
+                  'Fale com o Admin.'
+            : mensagemErro(e),
+      );
+    } catch (e) {
+      state = AuthControllerState.erro(mensagemErro(e));
     }
   }
 }
