@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../domain/entities/cliente.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
@@ -20,7 +21,8 @@ class ClientesView extends ConsumerWidget {
       appBar: AppBar(title: const Text('Clientes')),
       body: clientesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
+        error: (erro, _) =>
+            Center(child: Text('Erro ao carregar: ${mensagemErro(erro)}')),
         data: (clientes) {
           if (clientes.isEmpty) {
             return const Center(
@@ -108,7 +110,14 @@ class ClientesView extends ConsumerWidget {
                 uf: ufController.text.trim().toUpperCase(),
                 ativo: true,
               );
-              await ref.read(cadastrosRepositoryProvider).criarCliente(cliente);
+              try {
+                await ref
+                    .read(cadastrosRepositoryProvider)
+                    .criarCliente(cliente);
+              } catch (e) {
+                if (dialogContext.mounted) await mostrarErro(dialogContext, e);
+                return;
+              }
               ref.invalidate(_clientesProvider);
               if (dialogContext.mounted) Navigator.of(dialogContext).pop();
             },

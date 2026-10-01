@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../domain/entities/cliente.dart';
 import '../../../domain/entities/composicao.dart';
@@ -47,7 +48,8 @@ class FichasTecnicasView extends ConsumerWidget {
       appBar: AppBar(title: const Text('Fichas técnicas')),
       body: fichasAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
+        error: (erro, _) =>
+            Center(child: Text('Erro ao carregar: ${mensagemErro(erro)}')),
         data: (fichas) {
           if (fichas.isEmpty) {
             return const Center(
@@ -95,8 +97,15 @@ class FichasTecnicasView extends ConsumerWidget {
     WidgetRef ref, {
     FichaTecnica? existente,
   }) async {
-    final clientes = await ref.read(_clientesParaFormProvider.future);
-    final composicoes = await ref.read(_composicoesParaFormProvider.future);
+    final List<Cliente> clientes;
+    final List<Composicao> composicoes;
+    try {
+      clientes = await ref.read(_clientesParaFormProvider.future);
+      composicoes = await ref.read(_composicoesParaFormProvider.future);
+    } catch (e) {
+      if (context.mounted) await mostrarErro(context, e);
+      return;
+    }
 
     if (!context.mounted) return;
 
@@ -554,10 +563,17 @@ class FichasTecnicasView extends ConsumerWidget {
                   arranjo: int.tryParse(arranjoController.text),
                 );
                 final repo = ref.read(cadastrosRepositoryProvider);
-                if (existente == null) {
-                  await repo.criarFichaTecnica(ficha);
-                } else {
-                  await repo.atualizarFichaTecnica(ficha);
+                try {
+                  if (existente == null) {
+                    await repo.criarFichaTecnica(ficha);
+                  } else {
+                    await repo.atualizarFichaTecnica(ficha);
+                  }
+                } catch (e) {
+                  if (dialogContext.mounted) {
+                    await mostrarErro(dialogContext, e);
+                  }
+                  return;
                 }
                 ref.invalidate(_fichasProvider);
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();

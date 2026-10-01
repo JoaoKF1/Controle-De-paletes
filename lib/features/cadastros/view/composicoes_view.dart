@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../domain/entities/composicao.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
@@ -22,7 +23,8 @@ class ComposicoesView extends ConsumerWidget {
       appBar: AppBar(title: const Text('Composições')),
       body: composicoesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
+        error: (erro, _) =>
+            Center(child: Text('Erro ao carregar: ${mensagemErro(erro)}')),
         data: (composicoes) {
           if (composicoes.isEmpty) {
             return const Center(
@@ -147,9 +149,16 @@ class ComposicoesView extends ConsumerWidget {
                     tipoOnda: tipoOndaSelecionado,
                     papeis: papeisSelecionados,
                   );
-                  await ref
-                      .read(cadastrosRepositoryProvider)
-                      .criarComposicao(composicao);
+                  try {
+                    await ref
+                        .read(cadastrosRepositoryProvider)
+                        .criarComposicao(composicao);
+                  } catch (e) {
+                    if (dialogContext.mounted) {
+                      await mostrarErro(dialogContext, e);
+                    }
+                    return;
+                  }
                   ref.invalidate(_composicoesProvider);
                   if (dialogContext.mounted) Navigator.of(dialogContext).pop();
                 },

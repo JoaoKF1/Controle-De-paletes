@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/mensagem_erro.dart';
 import '../../data/repositories/qualidade_repository.dart';
 import '../../domain/entities/refugo.dart';
 import '../../features/auth/controller/auth_controller.dart';
@@ -65,14 +66,19 @@ Future<void> abrirDialogoLancarRefugo(
           FilledButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
-              await ref
-                  .read(qualidadeRepositoryProvider)
-                  .lancarRefugo(
-                    ordemProducaoId: ordemProducaoId,
-                    responsavelId: usuario.id,
-                    quantidade: int.parse(quantidadeController.text),
-                    motivo: motivoSelecionado,
-                  );
+              try {
+                await ref
+                    .read(qualidadeRepositoryProvider)
+                    .lancarRefugo(
+                      ordemProducaoId: ordemProducaoId,
+                      responsavelId: usuario.id,
+                      quantidade: int.parse(quantidadeController.text),
+                      motivo: motivoSelecionado,
+                    );
+              } catch (e) {
+                if (dialogContext.mounted) await mostrarErro(dialogContext, e);
+                return;
+              }
               if (dialogContext.mounted) Navigator.of(dialogContext).pop();
             },
             child: const Text('Salvar'),

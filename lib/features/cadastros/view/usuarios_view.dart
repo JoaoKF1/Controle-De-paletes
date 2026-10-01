@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/usuarios_repository.dart';
 import '../../../domain/entities/usuario.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
@@ -28,7 +29,8 @@ class UsuariosView extends ConsumerWidget {
       appBar: AppBar(title: const Text('Usuários')),
       body: usuariosAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
+        error: (erro, _) =>
+            Center(child: Text('Erro ao carregar: ${mensagemErro(erro)}')),
         data: (usuarios) {
           if (usuarios.isEmpty) {
             return const Center(
@@ -101,9 +103,14 @@ class UsuariosView extends ConsumerWidget {
               title: Text(usuario.ativo ? 'Desativar' : 'Reativar'),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
-                await ref
-                    .read(usuariosRepositoryProvider)
-                    .definirAtivo(userId: usuario.id, ativo: !usuario.ativo);
+                try {
+                  await ref
+                      .read(usuariosRepositoryProvider)
+                      .definirAtivo(userId: usuario.id, ativo: !usuario.ativo);
+                } catch (e) {
+                  if (context.mounted) await mostrarErro(context, e);
+                  return;
+                }
                 ref.invalidate(_usuariosProvider);
               },
             ),
@@ -133,72 +140,77 @@ class UsuariosView extends ConsumerWidget {
           title: const Text('Novo usuário'),
           content: SizedBox(
             width: 380,
-            child: Form(
-              key: formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CampoRotulado(
-                    rotulo: 'Nome',
-                    controller: nomeController,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  CampoRotulado(
-                    rotulo: 'Usuário (login)',
-                    controller: loginController,
-                    helperText: 'Sem espaços, ex: joaoaguiar',
-                    validator: (v) {
-                      final valor = v?.trim() ?? '';
-                      if (valor.isEmpty) return 'Obrigatório';
-                      if (valor.contains(' ')) return 'Sem espaços';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  CampoRotulado(
-                    rotulo: 'Senha',
-                    controller: senhaController,
-                    obscureText: true,
-                    validator: (v) => (v == null || v.length < 6)
-                        ? 'Mínimo 6 caracteres'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownRotulado(
-                    rotulo: 'Perfil',
-                    valor: perfilSelecionado,
-                    itens: _perfis
-                        .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                        .toList(),
-                    onChanged: (v) => setState(() => perfilSelecionado = v!),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownRotulado(
-                    rotulo: 'Turno',
-                    valor: turnoSelecionado,
-                    itens: _turnos
-                        .map(
-                          (t) => DropdownMenuItem(
-                            value: t,
-                            child: Text(_rotulosTurno[t]!),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => turnoSelecionado = v!),
-                  ),
-                  if (erro != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      erro!,
-                      style: TextStyle(
-                        color: Theme.of(dialogContext).colorScheme.error,
-                      ),
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CampoRotulado(
+                      rotulo: 'Nome',
+                      controller: nomeController,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Obrigatório'
+                          : null,
                     ),
+                    const SizedBox(height: 12),
+                    CampoRotulado(
+                      rotulo: 'Usuário (login)',
+                      controller: loginController,
+                      helperText: 'Sem espaços, ex: joaoaguiar',
+                      validator: (v) {
+                        final valor = v?.trim() ?? '';
+                        if (valor.isEmpty) return 'Obrigatório';
+                        if (valor.contains(' ')) return 'Sem espaços';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    CampoRotulado(
+                      rotulo: 'Senha',
+                      controller: senhaController,
+                      obscureText: true,
+                      validator: (v) => (v == null || v.length < 6)
+                          ? 'Mínimo 6 caracteres'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownRotulado(
+                      rotulo: 'Perfil',
+                      valor: perfilSelecionado,
+                      itens: _perfis
+                          .map(
+                            (p) => DropdownMenuItem(value: p, child: Text(p)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => perfilSelecionado = v!),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownRotulado(
+                      rotulo: 'Turno',
+                      valor: turnoSelecionado,
+                      itens: _turnos
+                          .map(
+                            (t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(_rotulosTurno[t]!),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => turnoSelecionado = v!),
+                    ),
+                    if (erro != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        erro!,
+                        style: TextStyle(
+                          color: Theme.of(dialogContext).colorScheme.error,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -231,7 +243,7 @@ class UsuariosView extends ConsumerWidget {
                         if (dialogContext.mounted) {
                           setState(() {
                             salvando = false;
-                            erro = e.toString();
+                            erro = mensagemErro(e);
                           });
                         }
                       }
@@ -262,42 +274,47 @@ class UsuariosView extends ConsumerWidget {
           title: const Text('Editar usuário'),
           content: SizedBox(
             width: 380,
-            child: Form(
-              key: formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CampoRotulado(
-                    rotulo: 'Nome',
-                    controller: nomeController,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownRotulado(
-                    rotulo: 'Perfil',
-                    valor: perfilSelecionado,
-                    itens: _perfis
-                        .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                        .toList(),
-                    onChanged: (v) => setState(() => perfilSelecionado = v!),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownRotulado(
-                    rotulo: 'Turno',
-                    valor: turnoSelecionado,
-                    itens: _turnos
-                        .map(
-                          (t) => DropdownMenuItem(
-                            value: t,
-                            child: Text(_rotulosTurno[t]!),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => turnoSelecionado = v!),
-                  ),
-                ],
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CampoRotulado(
+                      rotulo: 'Nome',
+                      controller: nomeController,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Obrigatório'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownRotulado(
+                      rotulo: 'Perfil',
+                      valor: perfilSelecionado,
+                      itens: _perfis
+                          .map(
+                            (p) => DropdownMenuItem(value: p, child: Text(p)),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => perfilSelecionado = v!),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownRotulado(
+                      rotulo: 'Turno',
+                      valor: turnoSelecionado,
+                      itens: _turnos
+                          .map(
+                            (t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(_rotulosTurno[t]!),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => turnoSelecionado = v!),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -312,14 +329,22 @@ class UsuariosView extends ConsumerWidget {
                   : () async {
                       if (!formKey.currentState!.validate()) return;
                       setState(() => salvando = true);
-                      await ref
-                          .read(usuariosRepositoryProvider)
-                          .atualizarPerfil(
-                            userId: usuario.id,
-                            nome: nomeController.text.trim(),
-                            perfil: perfilSelecionado,
-                            turno: turnoSelecionado,
-                          );
+                      try {
+                        await ref
+                            .read(usuariosRepositoryProvider)
+                            .atualizarPerfil(
+                              userId: usuario.id,
+                              nome: nomeController.text.trim(),
+                              perfil: perfilSelecionado,
+                              turno: turnoSelecionado,
+                            );
+                      } catch (e) {
+                        if (dialogContext.mounted) {
+                          setState(() => salvando = false);
+                          await mostrarErro(dialogContext, e);
+                        }
+                        return;
+                      }
                       ref.invalidate(_usuariosProvider);
                       if (dialogContext.mounted) {
                         Navigator.of(dialogContext).pop();
@@ -350,30 +375,32 @@ class UsuariosView extends ConsumerWidget {
           title: Text('Trocar senha de ${usuario.nome}'),
           content: SizedBox(
             width: 380,
-            child: Form(
-              key: formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CampoRotulado(
-                    rotulo: 'Nova senha',
-                    controller: senhaController,
-                    obscureText: true,
-                    validator: (v) => (v == null || v.length < 6)
-                        ? 'Mínimo 6 caracteres'
-                        : null,
-                  ),
-                  if (erro != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      erro!,
-                      style: TextStyle(
-                        color: Theme.of(dialogContext).colorScheme.error,
-                      ),
+            child: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CampoRotulado(
+                      rotulo: 'Nova senha',
+                      controller: senhaController,
+                      obscureText: true,
+                      validator: (v) => (v == null || v.length < 6)
+                          ? 'Mínimo 6 caracteres'
+                          : null,
                     ),
+                    if (erro != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        erro!,
+                        style: TextStyle(
+                          color: Theme.of(dialogContext).colorScheme.error,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -402,7 +429,7 @@ class UsuariosView extends ConsumerWidget {
                         if (dialogContext.mounted) {
                           setState(() {
                             salvando = false;
-                            erro = e.toString();
+                            erro = mensagemErro(e);
                           });
                         }
                       }

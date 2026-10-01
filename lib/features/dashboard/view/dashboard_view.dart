@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/dashboard_repository.dart';
 import '../../../domain/entities/dashboard_dados.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
@@ -92,7 +93,8 @@ class DashboardView extends ConsumerWidget {
         height: 88,
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (erro, _) => Text('Erro ao carregar resumo: $erro'),
+      error: (erro, _) =>
+          Text('Erro ao carregar resumo: ${mensagemErro(erro)}'),
       data: (resumo) => Row(
         children: [
           Expanded(
@@ -143,7 +145,8 @@ class DashboardView extends ConsumerWidget {
     final producaoAsync = ref.watch(_producaoPorDiaProvider);
     return producaoAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
+      error: (erro, _) =>
+          Center(child: Text('Erro ao carregar: ${mensagemErro(erro)}')),
       data: (dias) {
         if (dias.isEmpty) {
           return const Center(
@@ -235,7 +238,8 @@ class DashboardView extends ConsumerWidget {
     final refugoAsync = ref.watch(_refugoPorMotivoProvider);
     return refugoAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
+      error: (erro, _) =>
+          Center(child: Text('Erro ao carregar: ${mensagemErro(erro)}')),
       data: (motivos) {
         if (motivos.isEmpty) {
           return const Center(child: Text('Nenhum refugo lançado ainda.'));

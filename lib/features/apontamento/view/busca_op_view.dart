@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/paletes_repository.dart';
 import '../../../domain/entities/palete.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
@@ -45,7 +46,7 @@ class _BuscaOpViewState extends ConsumerState<BuscaOpView> {
           : await repo.buscarPorFichaTecnica(termo);
       setState(() => _resultados = resultados);
     } catch (e) {
-      setState(() => _erro = e.toString());
+      setState(() => _erro = mensagemErro(e));
     } finally {
       if (mounted) setState(() => _buscando = false);
     }

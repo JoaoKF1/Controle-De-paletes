@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/mensagem_erro.dart';
 import '../../data/repositories/qualidade_repository.dart';
 import '../../domain/entities/palete.dart';
 import '../../domain/entities/refugo.dart';
@@ -172,14 +173,19 @@ Future<void> _abrirDialogoPedirRevisao(
         FilledButton(
           onPressed: () async {
             if (!formKey.currentState!.validate()) return;
-            await ref
-                .read(qualidadeRepositoryProvider)
-                .abrirOcorrencia(
-                  paleteId: palete.id,
-                  quantidadeAfetada: int.parse(quantidadeController.text),
-                  motivo: motivoController.text.trim(),
-                  abertoPor: usuarioId,
-                );
+            try {
+              await ref
+                  .read(qualidadeRepositoryProvider)
+                  .abrirOcorrencia(
+                    paleteId: palete.id,
+                    quantidadeAfetada: int.parse(quantidadeController.text),
+                    motivo: motivoController.text.trim(),
+                    abertoPor: usuarioId,
+                  );
+            } catch (e) {
+              if (dialogContext.mounted) await mostrarErro(dialogContext, e);
+              return;
+            }
             if (dialogContext.mounted) Navigator.of(dialogContext).pop();
           },
           child: const Text('Abrir ocorrência'),
@@ -216,7 +222,8 @@ Future<void> _confirmarSegregarInteiro(
       ],
     ),
   );
-  if (confirmou == true) {
+  if (confirmou != true) return;
+  try {
     await ref
         .read(qualidadeRepositoryProvider)
         .segregarInteiro(
@@ -224,6 +231,8 @@ Future<void> _confirmarSegregarInteiro(
           ordemProducaoId: ordemProducaoId,
           usuarioId: usuarioId,
         );
+  } catch (e) {
+    if (context.mounted) await mostrarErro(context, e);
   }
 }
 
@@ -312,18 +321,27 @@ Future<void> _abrirDialogoCorrigir(
             FilledButton(
               onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
-                await ref
-                    .read(qualidadeRepositoryProvider)
-                    .corrigirApontamento(
-                      palete: palete,
-                      ordem: ordem,
-                      novaAlturaMm: ehConversao
-                          ? null
-                          : double.parse(controller.text.replaceAll(',', '.')),
-                      novasCamadas: ehConversao
-                          ? int.parse(controller.text)
-                          : null,
-                    );
+                try {
+                  await ref
+                      .read(qualidadeRepositoryProvider)
+                      .corrigirApontamento(
+                        palete: palete,
+                        ordem: ordem,
+                        novaAlturaMm: ehConversao
+                            ? null
+                            : double.parse(
+                                controller.text.replaceAll(',', '.'),
+                              ),
+                        novasCamadas: ehConversao
+                            ? int.parse(controller.text)
+                            : null,
+                      );
+                } catch (e) {
+                  if (dialogContext.mounted) {
+                    await mostrarErro(dialogContext, e);
+                  }
+                  return;
+                }
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               },
               child: const Text('Salvar'),
@@ -379,14 +397,19 @@ Future<void> _abrirDialogoExcluir(
           ),
           FilledButton(
             onPressed: () async {
-              await ref
-                  .read(qualidadeRepositoryProvider)
-                  .excluirTotalmente(
-                    palete: palete,
-                    ordemProducaoId: ordemProducaoId,
-                    responsavelId: responsavelId,
-                    motivoRefugo: motivoSelecionado,
-                  );
+              try {
+                await ref
+                    .read(qualidadeRepositoryProvider)
+                    .excluirTotalmente(
+                      palete: palete,
+                      ordemProducaoId: ordemProducaoId,
+                      responsavelId: responsavelId,
+                      motivoRefugo: motivoSelecionado,
+                    );
+              } catch (e) {
+                if (dialogContext.mounted) await mostrarErro(dialogContext, e);
+                return;
+              }
               if (dialogContext.mounted) Navigator.of(dialogContext).pop();
             },
             child: const Text('Excluir'),

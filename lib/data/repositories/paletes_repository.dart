@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/utils/mensagem_erro.dart';
 import '../../domain/entities/palete.dart';
 import '../local/app_database.dart';
 import '../local/rede.dart';
@@ -339,7 +340,9 @@ class PaletesRepository {
             .timeout(timeoutRede);
         await _db.removerPalete(pendente.id);
       } catch (e) {
-        await _db.marcarErroSincronizacao(pendente.id, e.toString());
+        // Mesmo critério do Sincronizador: queda de rede não é erro do item.
+        if (falhaDeRede(e)) break;
+        await _db.marcarErroSincronizacao(pendente.id, mensagemErro(e));
       }
     }
   }
@@ -447,11 +450,10 @@ final paletesRepositoryProvider = Provider<PaletesRepository>((ref) {
 /// busca com todas as OPs (abertas e concluídas) fica centralizada em
 /// Cadastros > Ordens de Produção. Público (não só de `OrdensAbertasView`)
 /// porque `OrdemDetalheView` precisa invalidar depois de encerrar uma OP.
-final ordensAbertasProvider = FutureProvider.autoDispose<List<OrdemProducaoInfo>>((
-  ref,
-) {
-  return ref.watch(paletesRepositoryProvider).listarOrdensAbertas();
-});
+final ordensAbertasProvider =
+    FutureProvider.autoDispose<List<OrdemProducaoInfo>>((ref) {
+      return ref.watch(paletesRepositoryProvider).listarOrdensAbertas();
+    });
 
 /// Compartilhado entre a tela de detalhe da OP e a tela de apontamento —
 /// as duas precisam da mesma lista (uma pra exibir, a outra pra calcular

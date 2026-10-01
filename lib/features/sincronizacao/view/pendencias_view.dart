@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/local/app_database.dart';
 import '../../../data/local/sincronizador.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
@@ -52,7 +53,7 @@ class PendenciasView extends ConsumerWidget {
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (erro, _) => Text('Erro: $erro'),
+              error: (erro, _) => Text(mensagemErro(erro)),
               data: (paletes) {
                 if (paletes.isEmpty) {
                   return const Padding(
@@ -94,7 +95,7 @@ class PendenciasView extends ConsumerWidget {
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (erro, _) => Text('Erro: $erro'),
+              error: (erro, _) => Text(mensagemErro(erro)),
               data: (operacoes) {
                 if (operacoes.isEmpty) {
                   return const Padding(

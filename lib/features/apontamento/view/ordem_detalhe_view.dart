@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/cadastros_repository.dart';
 import '../../../data/repositories/paletes_repository.dart';
 import '../../../data/repositories/qualidade_repository.dart';
+import '../../../domain/entities/teste_qualidade.dart';
 import '../../../domain/entities/palete.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
 import '../../../shared/widgets/lancar_refugo_dialog.dart';
@@ -75,7 +77,8 @@ class _OrdemDetalheViewState extends ConsumerState<OrdemDetalheView> {
       ),
       body: paletesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (erro, _) => Center(child: Text('Erro ao carregar: $erro')),
+        error: (erro, _) =>
+            Center(child: Text('Erro ao carregar: ${mensagemErro(erro)}')),
         data: (paletes) {
           // Só chapas da Onduladeira — as caixas que a Conversão apontar
           // nessa mesma OP são outra unidade, não somam aqui (ver
@@ -197,9 +200,15 @@ class _OrdemDetalheViewState extends ConsumerState<OrdemDetalheView> {
     WidgetRef ref,
     OrdemProducaoInfo ordem,
   ) async {
-    final ordemParaTeste = await ref
-        .read(qualidadeRepositoryProvider)
-        .buscarOrdemParaTeste(ordem.id);
+    final OrdemParaTeste ordemParaTeste;
+    try {
+      ordemParaTeste = await ref
+          .read(qualidadeRepositoryProvider)
+          .buscarOrdemParaTeste(ordem.id);
+    } catch (e) {
+      if (context.mounted) await mostrarErro(context, e);
+      return;
+    }
     if (!context.mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -239,7 +248,14 @@ class _OrdemDetalheViewState extends ConsumerState<OrdemDetalheView> {
     );
     if (confirmar != true) return;
 
-    await ref.read(cadastrosRepositoryProvider).encerrarOrdemProducao(ordem.id);
+    try {
+      await ref
+          .read(cadastrosRepositoryProvider)
+          .encerrarOrdemProducao(ordem.id);
+    } catch (e) {
+      if (context.mounted) await mostrarErro(context, e);
+      return;
+    }
     ref.invalidate(ordensAbertasProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(
@@ -293,7 +309,7 @@ class _OrdemDetalheViewState extends ConsumerState<OrdemDetalheView> {
       if (mounted) {
         setState(() {
           _salvando = false;
-          _erro = e.toString();
+          _erro = mensagemErro(e);
         });
       }
     }
