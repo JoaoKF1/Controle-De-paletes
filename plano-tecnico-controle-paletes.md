@@ -37,7 +37,7 @@ Isso importa pro app porque **o `tipo_chapa` de um apontamento da Onduladeira de
 
 - **App**: Flutter (`lib/`). Hoje builda e roda de verdade em **Windows desktop** (dev/teste do dia a dia) e **Android** (APK gerado e testado — ver seção 12). iOS ainda não foi construído; segue o plano original de build via Codemagic, sem depender de Mac local.
 - **Gerenciamento de estado**: Riverpod (`flutter_riverpod`) — `Provider`, `FutureProvider` (com `.family` quando o dado depende de um parâmetro, ex. paletes de uma OP) e `StreamProvider` (dados que atualizam sozinhos, ex. fila de pendências offline).
-- **Backend**: Supabase (Postgres + Auth + Realtime), client `supabase_flutter`. Schema sempre versionado em `supabase/migrations/`, aplicado via Supabase CLI (`supabase db push`) — nunca SQL colado direto no dashboard (ver seção 7).
+- **Backend**: Supabase (Postgres + Auth + Realtime), client `supabase_flutter`. Schema sempre versionado em `supabase/migrations/`, aplicado via Supabase CLI (`supabase db push`) — nunca SQL colado direto no dashboard (ver seção 7). **Plano gratuito pausa o projeto depois de 7 dias sem uso**: o domínio `<ref>.supabase.co` deixa de existir e o app passa a mostrar "Sem conexão com o servidor" em tudo, inclusive no login. Já aconteceu (projeto parado de 19/08 a 01/10/2026) — o dado não se perde, mas precisa clicar em *Restore project* no dashboard (prazo de 90 dias depois da pausa). Durante o piloto, ou usa pelo menos 1x por semana, ou sobe pro plano Pro.
 - **Modo offline**: SQLite local via `drift` (+ `sqlite3_flutter_libs`, `path_provider`, `path`) — cache de leitura + fila de escrita (outbox), ver 9.12/9.13.
 - **Configuração/segredos**: `flutter_dotenv`, lendo um `.env` (URL + chave pública do Supabase) empacotado como asset — a `service_role` key nunca entra no app, só na Edge Function (ver 9.8).
 - **Gráficos (Dashboard)**: `fl_chart`, com paleta e padrões de acessibilidade validados via skill de dataviz (ver Sprint 7).
@@ -46,7 +46,7 @@ Isso importa pro app porque **o `tipo_chapa` de um apontamento da Onduladeira de
 - **Leitura de código de barras**: `mobile_scanner` — dependência já instalada, mas sem tela usando a câmera de verdade ainda (Sprint 6, adiado; as ações que dependeriam disso hoje funcionam por toque na lista, ver 9.5).
 - **Etiqueta** (Sprint 6, adiado): `pdf` + `printing` já instalados pra quando o layout for aprovado pela gerência — geração de PDF A4 com código de barras, impressão via rede/WiFi.
 - **Datas/horas**: `intl` pra formatação. Todo timestamp que vem do Supabase (gravado em UTC) passa por `.toLocal()` ao entrar no app, em todas as entidades — sem isso, qualquer usuário fora do UTC (Brasil é UTC-3) vê a hora adiantada. Foi um bug real encontrado testando no celular (nesse passe de design pré-piloto): o Dashboard já convertia certo, mas as entidades (`Palete`, `OrdemProducao`, `Refugo`, `OcorrenciaQualidade`) não — corrigido em todas.
-- **CI**: GitHub Actions (`.github/workflows/ci.yml`) — `flutter analyze` + `flutter test` em todo push, rede de segurança complementar (não é gate — ver seção 7).
+- **CI**: GitHub Actions (`.github/workflows/ci.yml`) — `flutter analyze` + `flutter test` em todo push, rede de segurança complementar (não é gate — ver seção 7). Na máquina de dev (Windows 11), o `flutter test` local pode ser bloqueado pelo Smart App Control (bloqueia o `impellerc.exe` do Flutter) — nesse caso o CI é quem roda os testes.
 
 ---
 
@@ -297,6 +297,21 @@ Estende a mesma fila de pendentes da Fase 1, mas de forma genérica: uma única 
 - **Não entram — continuam exigindo conexão**: segregar inteiro, resolver ocorrência, corrigir apontamento, excluir totalmente. Todas essas debitam em cima do **saldo atual** do palete; fazer isso com um número que pode estar desatualizado (por exemplo, outra ocorrência já debitou uma parte enquanto o aparelho estava offline) arrisca um débito incorreto que o app não teria como perceber sozinho. Diferente do `numero_sequencial` do palete (que só é "cosmético" e se resolve sozinho no servidor), aqui o próprio valor sendo gravado depende do estado — não dá pra adiar a leitura com segurança.
 - **Diferença de visibilidade em relação à Fase 1**: apontamento de palete tem cache próprio, então o item pendente aparece na lista de paletes da OP, junto com os outros. Refugo/ocorrência/cadastros não têm lista em cache — o item some da tela de origem até sincronizar. A confirmação de que "salvou, só não sincronizou ainda" fica na tela **Pendências de sincronização** (Admin, em Cadastros), que mostra as duas filas (apontamentos + fila genérica) ao vivo, com o erro de cada item que falhar e um botão de sincronizar manualmente.
 - O dispatcher da fila genérica (`Sincronizador._enviar`) interpreta `tipo` como `<tabela>_criar` ou `<tabela>_atualizar` pros cadastros, e como `refugo`/`ocorrencia_abrir` pros outros dois — não precisa de um caso novo por tabela, só de payload com as mesmas chaves que o insert/update já usaria.
+- **Queda de rede durante a sincronização não é erro do item**: as duas filas param na primeira falha de rede (`falhaDeRede`) sem marcar nada, e tentam tudo de novo quando a conexão voltar. Só erro "de verdade" do servidor (ex.: OP já concluída, RLS) fica gravado na linha — já traduzido por `mensagemErro()` (ver 9.14).
+- **Limitação conhecida — abrir o app do zero offline**: o perfil do usuário (`profiles`) é sempre buscado no servidor ao abrir o app, sem cache local. Se o app for aberto sem internet, mesmo com sessão salva, cai na tela de login com "Sem conexão com o servidor". O modo offline só cobre o caso de o app já estar aberto quando a conexão cai. Corrigir exige guardar o perfil localmente — pendente.
+
+### 9.14 Tratamento de erros (mensagens pro operador)
+
+Nenhuma tela mostra exceção crua (`PostgrestException(...)`, `ClientException with SocketException...`) — tudo passa por `mensagemErro()` (`lib/core/utils/mensagem_erro.dart`), que traduz:
+
+- **Falha de rede** (mesmo critério de `falhaDeRede`, ver 9.12) → "Sem conexão com o servidor. Verifique a internet e tente novamente." Vale também pro login: sem conexão, o Supabase Auth devolve um `AuthException` com a falha de rede no texto.
+- **Auth**: "Invalid login credentials" → "Usuário ou senha incorretos." (o Supabase devolve em inglês).
+- **Postgres**, por código: `42501` (RLS) → sem permissão; `23505` → registro duplicado; `23503` → vínculo inexistente; `PGRST116` → não encontrado. Outros códigos mostram a mensagem do próprio Postgres.
+- **Edge Function**: usa o campo `erro` do corpo da resposta (padrão das nossas functions).
+
+Toda ação que grava algo (botão de salvar de cadastro, ações sobre palete, refugo, teste de qualidade, encerrar OP) trata o erro e mostra um diálogo com `mostrarErro()` — antes, várias só falhavam em silêncio, e em algumas o botão ficava travado em "salvando". No login, "não encontramos seu perfil cadastrado" só aparece quando o perfil realmente não existe (`PGRST116`); qualquer outra falha mostra a causa real.
+
+**Inicialização** (`main.dart`): se o `.env` faltar/estiver incompleto ou o `Supabase.initialize` falhar, o app abre uma tela de erro com o detalhe (`ErroInicializacaoApp`) em vez de ficar em tela branca. Falha do Firebase não bloqueia o app — só fica sem push.
 
 ---
 
@@ -306,6 +321,7 @@ Estende a mesma fila de pendentes da Fase 1, mas de forma genérica: uma única 
 - **Perfil `expedicao`**: consulta de OPs 802 em produção, carregamento pro cliente.
 - Chapa elaborada com fluxo de Quebra mais refinado.
 - OCR de etiqueta.
+- **Modo offline — abrir o app do zero sem internet** (cache local do perfil do usuário — ver 9.13).
 - **Modo offline — ações que dependem de saldo atual do palete** (segregar inteiro, resolver ocorrência, corrigir apontamento, excluir totalmente): continuam exigindo conexão de propósito — ver 9.13.
 
 ---
@@ -352,7 +368,7 @@ Primeiro APK gerado e testado num celular de verdade nesse passe de design pré-
 
 Projeto Firebase `controle-de-paletes-36a14`, criado só pra Android — o app roda em Windows (dev/admin) e Android, mas o Firebase só foi configurado pra Android (`flutterfire configure --platforms=android`, gerou `lib/firebase_options.dart` e `android/app/google-services.json`). `main.dart` só chama `Firebase.initializeApp` quando `Platform.isAndroid`; em qualquer outra plataforma isso é pulado de propósito — `firebase_core`/`firebase_messaging` compilam para Windows (o link do `firebase_app.lib` funciona), mas nunca são inicializados lá.
 
-- **`PushNotificationsService`** (`lib/data/services/push_notifications_service.dart`): chamado depois de todo login bem-sucedido (`AuthController._carregarPerfil`), fire-and-forget — pede permissão de notificação, pega o token do FCM e grava/atualiza em `device_tokens` (um token por aparelho, `upsert` por `token`). Nunca lança erro: falha de permissão, sem Google Play Services etc. não pode derrubar o login.
-- **`device_tokens`**: tabela nova, RLS restringe cada usuário a gerenciar só o próprio token — quem lê de verdade é a Edge Function, via `service_role` (ignora RLS).
+- **`PushNotificationsService`** (`lib/data/services/push_notifications_service.dart`): chamado depois de todo login bem-sucedido (`AuthController._carregarPerfil`), fire-and-forget — pede permissão de notificação, pega o token do FCM e grava via função `registrar_device_token` (um token por aparelho). No logout (`AuthController.sair`), apaga o token do aparelho, pra ele parar de receber push do usuário que saiu. O listener de `onTokenRefresh` é um só por aparelho (cancelado e recriado a cada login). Nunca lança erro: falha de permissão, sem Google Play Services etc. não pode derrubar o login nem o logout.
+- **`device_tokens`**: tabela nova, RLS restringe cada usuário a gerenciar só o próprio token — quem lê de verdade é a Edge Function, via `service_role` (ignora RLS). O registro **não** é `upsert` direto: num celular compartilhado (troca de conta), a linha do token pertence ao usuário anterior e o RLS bloqueava o update — o push continuava indo pra pessoa errada. Por isso usa a função `security definer` `registrar_device_token(p_token)` (migration `20261001120000`), que reatribui o token sempre pro `auth.uid()` de quem chamou.
 - **Edge Function `notificar-teste-qualidade`**: chamada pelo app logo depois de `QualidadeRepository.registrarTeste` salvar com sucesso (não dispara se o insert cair pra fila offline). Calcula o turno atual a partir da hora do servidor (Brasil = UTC-3), busca quem é `perfil = 'onduladeira'` e está nesse turno, pega os tokens desses usuários e manda o push via `firebase-admin` (Admin SDK, autenticado com a service account do projeto, guardada como secret `FIREBASE_SERVICE_ACCOUNT_JSON`). Só Onduladeira recebe — Gestão e Qualidade não, porque quem registra o teste é a própria Qualidade.
 - **Turno do usuário** (`profiles.turno`, obrigatório): `primeiro` (07:00–16:48), `segundo` (16:48–01:48, e cobre também o intervalo residual até as 07:00) ou `comercial` (sem correspondência de turno na Edge Function — hoje só usado por quem não é Onduladeira, então nunca entra no filtro de notificação). Cadastrado/editado na tela de Usuários.
