@@ -1,3 +1,5 @@
+import 'ficha_tecnica.dart';
+
 /// Espelha a tabela `paletes`. `quantidade_calculada` nunca é digitada pelo
 /// usuário — é sempre derivada na hora do apontamento: de `altura_medida_mm`
 /// pra Onduladeira, de `camadas` pra Conversão (ver plano técnico, 9.1).
@@ -75,8 +77,8 @@ class Palete {
   );
 }
 
-/// Ordem de produção com os dados de Cliente, Ficha Técnica e Composição
-/// já embutidos (join único via PostgREST) — evita N+1 pra montar as telas
+/// Ordem de produção com os dados da Ficha Técnica (inclusive cliente e
+/// composição, que vivem na própria FT) já embutidos (join único via PostgREST) — evita N+1 pra montar as telas
 /// de apontamento, que sempre precisam desses dados juntos.
 class OrdemProducaoInfo {
   final String id;
@@ -87,7 +89,10 @@ class OrdemProducaoInfo {
   final String codigoFt;
   final int qpPadrao;
   final String clienteNome;
-  final double composicaoEspessuraMm;
+  // Espessura medida na OP (é a que entra no cálculo) e a esperada da FT
+  // (só referência, pro aviso de divergência) — ver plano técnico, 9.1.
+  final double espessuraMedidaMm;
+  final double espessuraEsperadaMm;
   final String composicaoCodigo;
   final double comprimentoMm;
   final double larguraMm;
@@ -121,7 +126,8 @@ class OrdemProducaoInfo {
     required this.codigoFt,
     required this.qpPadrao,
     required this.clienteNome,
-    required this.composicaoEspessuraMm,
+    required this.espessuraMedidaMm,
+    required this.espessuraEsperadaMm,
     required this.composicaoCodigo,
     required this.comprimentoMm,
     required this.larguraMm,
@@ -142,7 +148,8 @@ class OrdemProducaoInfo {
         codigoFt: codigoFt,
         qpPadrao: qpPadrao,
         clienteNome: clienteNome,
-        composicaoEspessuraMm: composicaoEspessuraMm,
+        espessuraMedidaMm: espessuraMedidaMm,
+        espessuraEsperadaMm: espessuraEsperadaMm,
         composicaoCodigo: composicaoCodigo,
         comprimentoMm: comprimentoMm,
         larguraMm: larguraMm,
@@ -155,8 +162,13 @@ class OrdemProducaoInfo {
 
   factory OrdemProducaoInfo.fromMap(Map<String, dynamic> map) {
     final ft = map['fichas_tecnicas'] as Map<String, dynamic>;
-    final cliente = ft['clientes'] as Map<String, dynamic>;
-    final composicao = ft['composicoes'] as Map<String, dynamic>;
+    final papeis = [
+      ft['papel_1'] as String?,
+      ft['papel_2'] as String?,
+      ft['papel_3'] as String?,
+      ft['papel_4'] as String?,
+      ft['papel_5'] as String?,
+    ].whereType<String>().toList();
     return OrdemProducaoInfo(
       id: map['id'] as String,
       numeroOp: map['numero_op'] as String,
@@ -165,9 +177,13 @@ class OrdemProducaoInfo {
       status: map['status'] as String,
       codigoFt: ft['codigo_ft'] as String,
       qpPadrao: ft['qp_padrao'] as int,
-      clienteNome: cliente['razao_social'] as String,
-      composicaoEspessuraMm: (composicao['espessura_mm'] as num).toDouble(),
-      composicaoCodigo: composicao['codigo'] as String,
+      clienteNome: ft['cliente_nome'] as String,
+      espessuraMedidaMm: (map['espessura_medida_mm'] as num).toDouble(),
+      espessuraEsperadaMm: (ft['espessura_esperada_mm'] as num).toDouble(),
+      composicaoCodigo: FichaTecnica.gerarComposicao(
+        tipoOnda: ft['tipo_onda'] as String,
+        papeis: papeis,
+      ),
       comprimentoMm: (ft['comprimento_mm'] as num).toDouble(),
       larguraMm: (ft['largura_mm'] as num).toDouble(),
       pacotesPorCamada: ft['pacotes_por_camada'] as int?,

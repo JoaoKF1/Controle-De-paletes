@@ -46,7 +46,17 @@ Future<void> main() async {
     }
   }
 
-  runApp(const ProviderScope(child: ControlePaletesApp()));
+  runApp(
+    ProviderScope(
+      // O Riverpod 3 refaz sozinho até 10x (com espera crescente) qualquer
+      // provider que falhe — a tela ficava ~40s em "carregando" antes de
+      // mostrar o erro. Falha de rede já cai pro cache offline dentro dos
+      // repositórios (ver plano técnico, 9.12), então aqui o erro aparece
+      // na hora.
+      retry: (_, _) => null,
+      child: const ControlePaletesApp(),
+    ),
+  );
 }
 
 /// Tela mostrada no lugar do app quando a configuração básica falha antes

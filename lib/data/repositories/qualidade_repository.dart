@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/entities/ocorrencia_qualidade.dart';
 import '../../domain/entities/palete.dart';
 import '../../domain/entities/teste_qualidade.dart';
+import '../../domain/services/calculo_palete.dart';
 import '../local/app_database.dart';
 import '../local/rede.dart';
 import '../remote/supabase_provider.dart';
@@ -139,7 +140,7 @@ class QualidadeRepository {
         .from('ordens_producao')
         .select(
           'id, numero_op, status, ficha_tecnica_id, '
-          'fichas_tecnicas(clientes(razao_social))',
+          'fichas_tecnicas(cliente_nome)',
         )
         .order('data_pedido', ascending: false);
     final testes = await _client
@@ -153,13 +154,12 @@ class QualidadeRepository {
     return (ops as List).map((o) {
       final numeroOp = o['numero_op'] as String;
       final ft = o['fichas_tecnicas'] as Map<String, dynamic>;
-      final cliente = ft['clientes'] as Map<String, dynamic>;
       final id = o['id'] as String;
       return OrdemParaTeste(
         id: id,
         numeroOp: numeroOp,
         fichaTecnicaId: o['ficha_tecnica_id'] as String,
-        clienteNome: cliente['razao_social'] as String,
+        clienteNome: ft['cliente_nome'] as String,
         unidadePedido: numeroOp.startsWith('803') ? 'chapas' : 'caixas',
         status: o['status'] as String,
         totalTestes: contagem[id] ?? 0,
@@ -175,13 +175,12 @@ class QualidadeRepository {
         .from('ordens_producao')
         .select(
           'id, numero_op, status, ficha_tecnica_id, '
-          'fichas_tecnicas(clientes(razao_social))',
+          'fichas_tecnicas(cliente_nome)',
         )
         .eq('id', ordemProducaoId)
         .single();
     final numeroOp = o['numero_op'] as String;
     final ft = o['fichas_tecnicas'] as Map<String, dynamic>;
-    final cliente = ft['clientes'] as Map<String, dynamic>;
     final testes = await _client
         .from('testes_qualidade')
         .select('id')
@@ -190,7 +189,7 @@ class QualidadeRepository {
       id: o['id'] as String,
       numeroOp: numeroOp,
       fichaTecnicaId: o['ficha_tecnica_id'] as String,
-      clienteNome: cliente['razao_social'] as String,
+      clienteNome: ft['cliente_nome'] as String,
       unidadePedido: numeroOp.startsWith('803') ? 'chapas' : 'caixas',
       status: o['status'] as String,
       totalTestes: (testes as List).length,
@@ -369,9 +368,11 @@ class QualidadeRepository {
         'quantidade_calculada': novaQuantidade,
       };
     } else {
-      novaQuantidade =
-          ((novaAlturaMm! / ordem.composicaoEspessuraMm) * ordem.qpPadrao)
-              .floor();
+      novaQuantidade = quantidadeChapasOnduladeira(
+        alturaCentesimos: paraCentesimos(novaAlturaMm!),
+        espessuraCentesimos: paraCentesimos(ordem.espessuraMedidaMm),
+        qpPadrao: ordem.qpPadrao,
+      );
       alteracoes = {
         'altura_medida_mm': novaAlturaMm,
         'quantidade_calculada': novaQuantidade,

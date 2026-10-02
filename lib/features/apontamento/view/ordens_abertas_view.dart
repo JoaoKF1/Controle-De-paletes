@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/paletes_repository.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
-import '../../auth/controller/auth_controller.dart';
 import 'ordem_detalhe_view.dart';
 
 class OrdensAbertasView extends ConsumerWidget {
@@ -12,20 +11,10 @@ class OrdensAbertasView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final usuario = ref.watch(authControllerProvider).usuario;
     final ordensAsync = ref.watch(ordensAbertasProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(usuario?.nome ?? 'Ordens em aberto'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-            onPressed: () => ref.read(authControllerProvider.notifier).sair(),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Ordens em aberto · Onduladeira')),
       body: ordensAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (erro, _) =>

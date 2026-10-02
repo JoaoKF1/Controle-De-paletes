@@ -3,25 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/cadastros_repository.dart';
-import '../../../domain/entities/cliente.dart';
-import '../../../domain/entities/composicao.dart';
 import '../../../domain/entities/ficha_tecnica.dart';
+import '../../../domain/services/calculo_palete.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
+import '../../auth/controller/auth_controller.dart';
 
 final _fichasProvider = FutureProvider.autoDispose<List<FichaTecnica>>((ref) {
   return ref.watch(cadastrosRepositoryProvider).listarFichasTecnicas();
 });
 
-final _clientesParaFormProvider = FutureProvider.autoDispose<List<Cliente>>((
-  ref,
-) {
-  return ref.watch(cadastrosRepositoryProvider).listarClientes();
-});
-
-final _composicoesParaFormProvider =
-    FutureProvider.autoDispose<List<Composicao>>((ref) {
-      return ref.watch(cadastrosRepositoryProvider).listarComposicoes();
-    });
+/// Posição de cada papel na estrutura da onda: simples = capa/miolo/capa,
+/// dupla = capa/miolo/capa/miolo/capa (ver plano técnico, 5.1).
+const _funcaoPapel = ['capa', 'miolo', 'capa', 'miolo', 'capa'];
 
 /// Valida que o máximo de uma faixa não fica menor que o mínimo já
 /// digitado — os dois são opcionais, então só valida quando ambos estão
@@ -43,6 +36,10 @@ class FichasTecnicasView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final fichasAsync = ref.watch(_fichasProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    // Só o admin cadastra/edita FT — os outros perfis consultam (ver plano
+    // técnico, 2). O RLS do banco garante isso de qualquer forma.
+    final podeEditar =
+        ref.watch(authControllerProvider).usuario?.perfil == 'admin';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Fichas técnicas')),
@@ -75,19 +72,101 @@ class FichasTecnicasView extends ConsumerWidget {
                   ),
                   title: Text(f.codigoFt),
                   subtitle: Text(
+                    '${f.clienteNome} · ${f.composicao}\n'
                     '${f.medidaExibicao} · QP padrão: ${f.qpPadrao}',
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _abrirFormulario(context, ref, existente: f),
+                  onTap: () => podeEditar
+                      ? _abrirFormulario(context, ref, existente: f)
+                      : _abrirDetalhe(context, f),
                 );
               },
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _abrirFormulario(context, ref),
-        child: const Icon(Icons.add),
+      floatingActionButton: podeEditar
+          ? FloatingActionButton(
+              onPressed: () => _abrirFormulario(context, ref),
+              child: const Icon(Icons.add),
+            )
+          : null,
+    );
+  }
+
+  /// Consulta somente leitura da FT, pra quem não é admin.
+  Future<void> _abrirDetalhe(BuildContext context, FichaTecnica f) {
+    String mm(double? v) => v == null ? '—' : '$v mm';
+    String faixa(double? min, double? max) =>
+        (min == null && max == null) ? '—' : '${min ?? '—'} a ${max ?? '—'}';
+    String valor(Object? v) => v?.toString() ?? '—';
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('FT ${f.codigoFt}'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                CartaoInfo(
+                  linhas: {
+                    'Cliente': f.clienteNome,
+                    'Composição': f.composicao,
+                    'Espessura':
+                        '${formatarMm(paraCentesimos(f.espessuraEsperadaMm))} mm',
+                    'Medida': f.medidaExibicao,
+                    'QP padrão': '${f.qpPadrao} pilhas',
+                    'Referência': f.referencia ?? '—',
+                  },
+                ),
+                const SizedBox(height: 12),
+                CartaoInfo(
+                  linhas: {
+                    'Vincos': [
+                      f.vinco1Mm,
+                      f.vinco2Mm,
+                      f.vinco3Mm,
+                      f.vinco4Mm,
+                      f.vinco5Mm,
+                    ].whereType<double>().map((v) => '$v').join(' · '),
+                    'Gramatura': valor(f.gramatura),
+                    'Coluna': valor(f.coluna),
+                    'Mullen': valor(f.mullen),
+                    'Compressão': valor(f.compressao),
+                    'Cobb interno': faixa(f.cobbInternoMin, f.cobbInternoMax),
+                    'Cobb externo': faixa(f.cobbExternoMin, f.cobbExternoMax),
+                    'Resina interna': faixa(
+                      f.resinaInternaMin,
+                      f.resinaInternaMax,
+                    ),
+                    'Resina externa': faixa(
+                      f.resinaExternaMin,
+                      f.resinaExternaMax,
+                    ),
+                  },
+                ),
+                const SizedBox(height: 12),
+                CartaoInfo(
+                  linhas: {
+                    'Pacotes por camada': valor(f.pacotesPorCamada),
+                    'Peças por pacote': valor(f.pecasPorPacote),
+                    'Arranjo': valor(f.arranjo),
+                    'Comprimento': mm(f.comprimentoMm),
+                    'Largura': mm(f.larguraMm),
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Fechar'),
+          ),
+        ],
       ),
     );
   }
@@ -97,32 +176,37 @@ class FichasTecnicasView extends ConsumerWidget {
     WidgetRef ref, {
     FichaTecnica? existente,
   }) async {
-    final List<Cliente> clientes;
-    final List<Composicao> composicoes;
+    // Sugestões são só conveniência: offline ou com erro, o formulário abre
+    // do mesmo jeito, sem sugestão.
+    var sugestoes = const SugestoesFichaTecnica(clientes: [], papeis: []);
     try {
-      clientes = await ref.read(_clientesParaFormProvider.future);
-      composicoes = await ref.read(_composicoesParaFormProvider.future);
-    } catch (e) {
-      if (context.mounted) await mostrarErro(context, e);
-      return;
-    }
+      sugestoes = await ref
+          .read(cadastrosRepositoryProvider)
+          .listarSugestoesFichaTecnica();
+    } catch (_) {}
 
     if (!context.mounted) return;
-
-    if (clientes.isEmpty || composicoes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Cadastre pelo menos 1 Cliente e 1 Composição antes de criar uma FT.',
-          ),
-        ),
-      );
-      return;
-    }
 
     final formKey = GlobalKey<FormState>();
     final codigoController = TextEditingController(
       text: existente?.codigoFt ?? '',
+    );
+    final clienteController = TextEditingController(
+      text: existente?.clienteNome ?? '',
+    );
+    var tipoOndaSelecionado = existente?.tipoOnda ?? tiposOnda.first;
+    final papelControllers = List.generate(
+      5,
+      (i) => TextEditingController(
+        text: (existente != null && i < existente.papeis.length)
+            ? existente.papeis[i]
+            : '',
+      ),
+    );
+    final espessuraController = TextEditingController(
+      text: existente == null
+          ? ''
+          : formatarMm(paraCentesimos(existente.espessuraEsperadaMm)),
     );
     final comprimentoController = TextEditingController(
       text: existente?.comprimentoMm.toString() ?? '',
@@ -196,9 +280,6 @@ class FichasTecnicasView extends ConsumerWidget {
     final arranjoController = TextEditingController(
       text: existente?.arranjo?.toString() ?? '',
     );
-    String? clienteIdSelecionado = existente?.clienteId ?? clientes.first.id;
-    String? composicaoIdSelecionada =
-        existente?.composicaoId ?? composicoes.first.id;
 
     await showDialog<void>(
       context: context,
@@ -225,36 +306,83 @@ class FichasTecnicasView extends ConsumerWidget {
                           : null,
                     ),
                     const SizedBox(height: 12),
-                    DropdownRotulado(
+                    CampoComSugestao(
                       rotulo: 'Cliente',
-                      valor: clienteIdSelecionado,
-                      itens: clientes
-                          .map(
-                            (c) => DropdownMenuItem(
-                              value: c.id,
-                              child: Text(c.razaoSocial),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (v) =>
-                          setState(() => clienteIdSelecionado = v),
+                      controller: clienteController,
+                      sugestoes: sugestoes.clientes,
+                      hint: 'Nome do cliente',
+                      textCapitalization: TextCapitalization.characters,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Obrigatório'
+                          : null,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 20),
+                    const RotuloSecaoMaiuscula('Composição'),
                     DropdownRotulado(
-                      rotulo: 'Composição',
-                      valor: composicaoIdSelecionada,
-                      itens: composicoes
+                      rotulo: 'Tipo de onda',
+                      valor: tipoOndaSelecionado,
+                      itens: tiposOnda
                           .map(
-                            (c) => DropdownMenuItem(
-                              value: c.id,
-                              child: Text(c.codigo),
-                            ),
+                            (t) => DropdownMenuItem(value: t, child: Text(t)),
                           )
                           .toList(),
                       onChanged: (v) =>
-                          setState(() => composicaoIdSelecionada = v),
+                          setState(() => tipoOndaSelecionado = v!),
+                    ),
+                    for (
+                      var i = 0;
+                      i < FichaTecnica.quantidadePapeis(tipoOndaSelecionado);
+                      i++
+                    ) ...[
+                      const SizedBox(height: 12),
+                      CampoComSugestao(
+                        // Key por posição + tipo de onda: ao trocar B↔DB os
+                        // campos 4 e 5 entram/saem sem misturar estado.
+                        key: ValueKey('papel_${i}_$tipoOndaSelecionado'),
+                        rotulo: 'Papel ${i + 1} (${_funcaoPapel[i]})',
+                        controller: papelControllers[i],
+                        sugestoes: sugestoes.papeis,
+                        hint: 'Ex: T140',
+                        textCapitalization: TextCapitalization.characters,
+                        onChanged: (_) => setState(() {}),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Obrigatório'
+                            : null,
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    CartaoInfo(
+                      linhas: {
+                        'Composição gerada': FichaTecnica.gerarComposicao(
+                          tipoOnda: tipoOndaSelecionado,
+                          papeis: [
+                            for (
+                              var i = 0;
+                              i <
+                                  FichaTecnica.quantidadePapeis(
+                                    tipoOndaSelecionado,
+                                  );
+                              i++
+                            )
+                              papelControllers[i].text.trim().toUpperCase(),
+                          ],
+                        ),
+                      },
                     ),
                     const SizedBox(height: 12),
+                    CampoRotulado(
+                      rotulo: 'Espessura (mm)',
+                      controller: espessuraController,
+                      hint: 'Ex: 3,85',
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      validator: (v) => lerCentesimos(v) == null
+                          ? 'Maior que zero, até 2 casas decimais'
+                          : null,
+                    ),
+                    const SizedBox(height: 20),
+                    const RotuloSecaoMaiuscula('Chapa'),
                     linhaDupla(
                       CampoRotulado(
                         rotulo: 'Comprimento (mm)',
@@ -492,8 +620,19 @@ class FichasTecnicasView extends ConsumerWidget {
                 final ficha = FichaTecnica(
                   id: existente?.id ?? '',
                   codigoFt: codigoController.text.trim(),
-                  clienteId: clienteIdSelecionado!,
-                  composicaoId: composicaoIdSelecionada!,
+                  clienteNome: clienteController.text.trim().toUpperCase(),
+                  tipoOnda: tipoOndaSelecionado,
+                  papeis: [
+                    for (
+                      var i = 0;
+                      i < FichaTecnica.quantidadePapeis(tipoOndaSelecionado);
+                      i++
+                    )
+                      papelControllers[i].text.trim().toUpperCase(),
+                  ],
+                  espessuraEsperadaMm: deCentesimos(
+                    lerCentesimos(espessuraController.text)!,
+                  ),
                   comprimentoMm: double.parse(
                     comprimentoController.text.replaceAll(',', '.'),
                   ),

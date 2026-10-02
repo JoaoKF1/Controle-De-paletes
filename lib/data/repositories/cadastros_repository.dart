@@ -2,8 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../domain/entities/cliente.dart';
-import '../../domain/entities/composicao.dart';
 import '../../domain/entities/ficha_tecnica.dart';
 import '../../domain/entities/ordem_producao.dart';
 import '../local/app_database.dart';
@@ -12,7 +10,13 @@ import '../remote/supabase_provider.dart';
 
 const _uuid = Uuid();
 
-/// Repositório único para os 4 cadastros base — todos são operações
+class SugestoesFichaTecnica {
+  final List<String> clientes;
+  final List<String> papeis;
+  const SugestoesFichaTecnica({required this.clientes, required this.papeis});
+}
+
+/// Repositório único para os cadastros base (FT e OP) — todos são operações
 /// simples de listar/criar, então não compensa um arquivo por entidade
 /// ainda. Se um cadastro ganhar regras próprias complexas, separa depois.
 ///
@@ -26,22 +30,27 @@ class CadastrosRepository {
   final AppDatabase _db;
   CadastrosRepository(this._client, this._db);
 
-  Future<List<Cliente>> listarClientes() async {
-    final dados = await _client.from('clientes').select().order('razao_social');
-    return (dados as List).map((e) => Cliente.fromMap(e)).toList();
-  }
-
-  Future<void> criarCliente(Cliente cliente) {
-    return _tentarOuEnfileirar('clientes', cliente.toInsertMap());
-  }
-
-  Future<List<Composicao>> listarComposicoes() async {
-    final dados = await _client.from('composicoes').select().order('codigo');
-    return (dados as List).map((e) => Composicao.fromMap(e)).toList();
-  }
-
-  Future<void> criarComposicao(Composicao composicao) {
-    return _tentarOuEnfileirar('composicoes', composicao.toInsertMap());
+  /// Sugestões pro formulário de FT: nomes de cliente e papéis já usados em
+  /// outras FTs. Não existe cadastro próprio de Cliente/Papel (o ERP é a
+  /// fonte) — sugerir o que já foi digitado evita "ACME" e "Acme Ltda"
+  /// virarem clientes diferentes na busca.
+  Future<SugestoesFichaTecnica> listarSugestoesFichaTecnica() async {
+    final dados = await _client
+        .from('fichas_tecnicas')
+        .select('cliente_nome, papel_1, papel_2, papel_3, papel_4, papel_5');
+    final clientes = <String>{};
+    final papeis = <String>{};
+    for (final f in dados as List) {
+      clientes.add(f['cliente_nome'] as String);
+      for (var i = 1; i <= 5; i++) {
+        final papel = f['papel_$i'] as String?;
+        if (papel != null) papeis.add(papel);
+      }
+    }
+    return SugestoesFichaTecnica(
+      clientes: clientes.toList()..sort(),
+      papeis: papeis.toList()..sort(),
+    );
   }
 
   Future<List<FichaTecnica>> listarFichasTecnicas() async {
@@ -91,11 +100,9 @@ class CadastrosRepository {
   /// apontamento novo. Continua normalmente disponível pra teste de
   /// qualidade (ver 9.6) — testar depois de fechada é o caso comum.
   Future<void> encerrarOrdemProducao(String id) {
-    return _tentarOuEnfileirar(
-      'ordens_producao',
-      {'status': 'concluida'},
-      idParaAtualizar: id,
-    );
+    return _tentarOuEnfileirar('ordens_producao', {
+      'status': 'concluida',
+    }, idParaAtualizar: id);
   }
 
   /// `idParaAtualizar` null = insert; preenchido = update daquele id.
@@ -108,11 +115,21 @@ class CadastrosRepository {
       if (idParaAtualizar == null) {
         await _client.from(tabela).insert(dados).timeout(timeoutRede);
       } else {
-        await _client
+        final atualizadas = await _client
             .from(tabela)
             .update(dados)
             .eq('id', idParaAtualizar)
+            .select('id')
             .timeout(timeoutRede);
+        // Update barrado pelo RLS não dá erro no PostgREST — só afeta 0
+        // linhas. Sem essa checagem o app dizia "salvo" sem ter salvo nada
+        // (era o que acontecia com "Encerrar produção" da Onduladeira).
+        if ((atualizadas as List).isEmpty) {
+          throw const PostgrestException(
+            message: 'Nenhum registro alterado',
+            code: '42501',
+          );
+        }
       }
     } catch (e) {
       if (!falhaDeRede(e)) rethrow;

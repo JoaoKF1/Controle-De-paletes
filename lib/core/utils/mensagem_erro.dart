@@ -6,6 +6,11 @@ import '../../data/local/rede.dart';
 const mensagemSemConexao =
     'Sem conexão com o servidor. Verifique a internet e tente novamente.';
 
+/// App mais novo que o banco (migration ainda não aplicada) ou o contrário.
+const mensagemBancoDesatualizado =
+    'O banco de dados não está atualizado para esta versão do app. '
+    'Avise o Admin.';
+
 /// Traduz qualquer erro vindo do Supabase/rede numa frase que o operador
 /// entende — nunca mostra a exceção crua (`PostgrestException(...)`,
 /// `ClientException with SocketException...`) numa tela do chão de fábrica.
@@ -33,9 +38,17 @@ String mensagemErro(Object erro) {
         return 'Registro vinculado a outro cadastro que não existe mais.';
       case 'PGRST116': // .single() sem nenhuma linha
         return 'Registro não encontrado.';
+      case '42703': // coluna não existe (consulta)
+      case 'PGRST204': // coluna não existe (gravação)
+      case '42P01': // tabela não existe
+        return mensagemBancoDesatualizado;
     }
     return erro.message;
   }
+
+  // Resposta do servidor sem um campo que o app espera (ex.: `null` onde
+  // devia vir texto) — na prática, app e banco em versões diferentes.
+  if (erro is TypeError) return mensagemBancoDesatualizado;
 
   // Edge Function respondeu com status de erro — o corpo segue o padrão
   // `{ "erro": "..." }` das nossas functions (ver supabase/functions).

@@ -7,6 +7,7 @@ import '../../../data/repositories/paletes_repository.dart';
 import '../../../data/repositories/qualidade_repository.dart';
 import '../../../domain/entities/teste_qualidade.dart';
 import '../../../domain/entities/palete.dart';
+import '../../../domain/services/calculo_palete.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
 import '../../../shared/widgets/lancar_refugo_dialog.dart';
 import '../../auth/controller/auth_controller.dart';
@@ -44,10 +45,17 @@ class _OrdemDetalheViewState extends ConsumerState<OrdemDetalheView> {
   Widget build(BuildContext context) {
     final ordem = widget.ordem;
     final paletesAsync = ref.watch(paletesDaOrdemProvider(ordem.id));
-    final altura = double.tryParse(_alturaController.text.replaceAll(',', '.'));
-    final quantidadePrevista = altura == null
+    final alturaCentesimos = lerCentesimos(_alturaController.text);
+    final quantidadePrevista = alturaCentesimos == null
         ? null
-        : ((altura / ordem.composicaoEspessuraMm) * ordem.qpPadrao).floor();
+        : quantidadeChapasOnduladeira(
+            alturaCentesimos: alturaCentesimos,
+            espessuraCentesimos: paraCentesimos(ordem.espessuraMedidaMm),
+            qpPadrao: ordem.qpPadrao,
+          );
+    // Conversão e Qualidade abrem esta tela só pra consulta: apontar,
+    // lançar refugo e encerrar a OP são da Onduladeira (+ admin).
+    final podeApontar = ref.watch(permissoesProvider).apontarOnduladeira;
 
     return Scaffold(
       appBar: AppBar(
@@ -58,16 +66,17 @@ class _OrdemDetalheViewState extends ConsumerState<OrdemDetalheView> {
             tooltip: 'Testes de qualidade',
             onPressed: () => _abrirTestesQualidade(context, ref, ordem),
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_sweep_outlined),
-            tooltip: 'Lançar refugo',
-            onPressed: () => abrirDialogoLancarRefugo(
-              context,
-              ref,
-              ordemProducaoId: ordem.id,
+          if (podeApontar)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_outlined),
+              tooltip: 'Lançar refugo',
+              onPressed: () => abrirDialogoLancarRefugo(
+                context,
+                ref,
+                ordemProducaoId: ordem.id,
+              ),
             ),
-          ),
-          if (ordem.status == 'aberta')
+          if (podeApontar && ordem.status == 'aberta')
             IconButton(
               icon: const Icon(Icons.task_alt_outlined),
               tooltip: 'Encerrar produção',
@@ -99,6 +108,8 @@ class _OrdemDetalheViewState extends ConsumerState<OrdemDetalheView> {
                       'Composição': ordem.composicaoCodigo,
                       'Medida': ordem.medidaExibicao,
                       'QP padrão': '${ordem.qpPadrao} pilhas',
+                      'Espessura medida':
+                          '${formatarMm(paraCentesimos(ordem.espessuraMedidaMm))} mm',
                     },
                   ),
                   const SizedBox(height: 16),
@@ -107,7 +118,7 @@ class _OrdemDetalheViewState extends ConsumerState<OrdemDetalheView> {
                     valor: '$produzido de $alvo chapas',
                     progresso: alvo == 0 ? 0 : produzido / alvo,
                   ),
-                  if (ordem.status == 'aberta') ...[
+                  if (podeApontar && ordem.status == 'aberta') ...[
                     const SizedBox(height: 16),
                     const RotuloSecao('Altura medida (mm)'),
                     TextFormField(
@@ -116,15 +127,9 @@ class _OrdemDetalheViewState extends ConsumerState<OrdemDetalheView> {
                         decimal: true,
                       ),
                       onChanged: (_) => setState(() {}),
-                      validator: (v) {
-                        final valor = double.tryParse(
-                          (v ?? '').replaceAll(',', '.'),
-                        );
-                        if (valor == null || valor <= 0) {
-                          return 'Informe um número válido';
-                        }
-                        return null;
-                      },
+                      validator: (v) => lerCentesimos(v) == null
+                          ? 'Número maior que zero, até 2 casas decimais'
+                          : null,
                     ),
                     const SizedBox(height: 16),
                     CartaoInfo(
@@ -277,8 +282,8 @@ class _OrdemDetalheViewState extends ConsumerState<OrdemDetalheView> {
           .read(paletesRepositoryProvider)
           .registrarPalete(
             ordem: ordem,
-            alturaMedidaMm: double.parse(
-              _alturaController.text.replaceAll(',', '.'),
+            alturaMedidaMm: deCentesimos(
+              lerCentesimos(_alturaController.text)!,
             ),
             responsavelId: responsavelId,
             setorOrigem: 'onduladeira',

@@ -8,7 +8,6 @@ import '../../../data/repositories/qualidade_repository.dart';
 import '../../../domain/entities/ocorrencia_qualidade.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
 import '../../auth/controller/auth_controller.dart';
-import 'testes_qualidade_view.dart';
 
 final _emAnaliseProvider =
     FutureProvider.autoDispose<List<OcorrenciaQualidade>>((ref) {
@@ -20,27 +19,13 @@ class FilaAnaliseView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final usuario = ref.watch(authControllerProvider).usuario;
     final filaAsync = ref.watch(_emAnaliseProvider);
+    // Onduladeira acompanha a fila, mas só a Qualidade (ou admin) decide
+    // uma ocorrência — ver plano técnico, 9.4.
+    final podeResolver = ref.watch(permissoesProvider).resolverOcorrencia;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(usuario?.nome ?? 'Fila de análise'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.fact_check_outlined),
-            tooltip: 'Testes de qualidade',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const TestesQualidadeView()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-            onPressed: () => ref.read(authControllerProvider.notifier).sair(),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Fila de análise')),
       body: filaAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (erro, _) =>
@@ -63,7 +48,9 @@ class FilaAnaliseView extends ConsumerWidget {
                   trailing: Text(
                     DateFormat('dd/MM HH:mm').format(o.dataAbertura),
                   ),
-                  onTap: () => _abrirResolucao(context, ref, o),
+                  onTap: podeResolver
+                      ? () => _abrirResolucao(context, ref, o)
+                      : null,
                 );
               },
             ),

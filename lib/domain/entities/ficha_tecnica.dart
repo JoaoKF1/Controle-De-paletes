@@ -1,8 +1,21 @@
+/// Onda simples (B ou C) usa 3 papéis (capa/miolo/capa); onda dupla (DB ou
+/// DC) usa 5 (capa/miolo/capa/miolo/capa).
+const tiposOnda = ['B', 'C', 'DB', 'DC'];
+
 class FichaTecnica {
   final String id;
   final String codigoFt;
-  final String clienteId;
-  final String composicaoId;
+
+  // Cliente e composição ficam direto na FT — não existe mais cadastro
+  // próprio de Cliente/Composição (o ERP da empresa já é a fonte disso,
+  // ver plano técnico, 5).
+  final String clienteNome;
+  final String tipoOnda;
+  final List<String> papeis;
+
+  // Espessura esperada da chapa — só referência. O cálculo do palete usa a
+  // espessura **medida** na OP (ver OrdemProducao.espessuraMedidaMm).
+  final double espessuraEsperadaMm;
   final double comprimentoMm;
   final double larguraMm;
   final int qpPadrao;
@@ -52,8 +65,10 @@ class FichaTecnica {
   const FichaTecnica({
     required this.id,
     required this.codigoFt,
-    required this.clienteId,
-    required this.composicaoId,
+    required this.clienteNome,
+    required this.tipoOnda,
+    required this.papeis,
+    required this.espessuraEsperadaMm,
     required this.comprimentoMm,
     required this.larguraMm,
     required this.qpPadrao,
@@ -81,6 +96,24 @@ class FichaTecnica {
     this.arranjo,
   });
 
+  /// Quantos campos de papel o formulário mostra pra cada tipo de onda —
+  /// DB/DC (dupla) usa 5, B/C (simples) usa 3. O banco garante a mesma
+  /// regra (`fichas_tecnicas_papeis_por_onda_check`).
+  static int quantidadePapeis(String tipoOnda) =>
+      (tipoOnda == 'DB' || tipoOnda == 'DC') ? 5 : 3;
+
+  /// Ex.: "T140M130T140/B" — os papéis concatenados na ordem + o tipo de
+  /// onda. Gerado pelo app, nunca digitado (mesmo padrão de "o app calcula"
+  /// de `quantidade_calculada`, ver plano técnico, 9.1).
+  static String gerarComposicao({
+    required String tipoOnda,
+    required List<String> papeis,
+  }) => '${papeis.join()}/$tipoOnda';
+
+  String get composicao => gerarComposicao(tipoOnda: tipoOnda, papeis: papeis);
+
+  String? _papel(int indice) => indice < papeis.length ? papeis[indice] : null;
+
   /// "Comprimento x Largura mm" pronto pra exibir.
   String get medidaExibicao =>
       '${comprimentoMm.toStringAsFixed(0)} x ${larguraMm.toStringAsFixed(0)} mm';
@@ -88,8 +121,16 @@ class FichaTecnica {
   factory FichaTecnica.fromMap(Map<String, dynamic> map) => FichaTecnica(
     id: map['id'] as String,
     codigoFt: map['codigo_ft'] as String,
-    clienteId: map['cliente_id'] as String,
-    composicaoId: map['composicao_id'] as String,
+    clienteNome: map['cliente_nome'] as String,
+    tipoOnda: map['tipo_onda'] as String,
+    papeis: [
+      map['papel_1'] as String?,
+      map['papel_2'] as String?,
+      map['papel_3'] as String?,
+      map['papel_4'] as String?,
+      map['papel_5'] as String?,
+    ].whereType<String>().toList(),
+    espessuraEsperadaMm: (map['espessura_esperada_mm'] as num).toDouble(),
     comprimentoMm: (map['comprimento_mm'] as num).toDouble(),
     larguraMm: (map['largura_mm'] as num).toDouble(),
     qpPadrao: map['qp_padrao'] as int,
@@ -119,8 +160,14 @@ class FichaTecnica {
 
   Map<String, dynamic> toInsertMap() => {
     'codigo_ft': codigoFt,
-    'cliente_id': clienteId,
-    'composicao_id': composicaoId,
+    'cliente_nome': clienteNome,
+    'tipo_onda': tipoOnda,
+    'papel_1': _papel(0),
+    'papel_2': _papel(1),
+    'papel_3': _papel(2),
+    'papel_4': _papel(3),
+    'papel_5': _papel(4),
+    'espessura_esperada_mm': espessuraEsperadaMm,
     'comprimento_mm': comprimentoMm,
     'largura_mm': larguraMm,
     'qp_padrao': qpPadrao,

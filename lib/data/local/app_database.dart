@@ -23,13 +23,11 @@ class LocalOrdens extends Table {
   TextColumn get codigoFt => text()();
   IntColumn get qpPadrao => integer()();
   TextColumn get clienteNome => text()();
-  RealColumn get composicaoEspessuraMm => real()();
-  TextColumn get composicaoCodigo => text().nullable()();
-  // Substituído por comprimentoMm/larguraMm — mantido só pra não quebrar
-  // linhas de cache já gravadas antes da migração; nunca mais é escrito.
-  TextColumn get medidaChapa => text().nullable()();
-  RealColumn get comprimentoMm => real().nullable()();
-  RealColumn get larguraMm => real().nullable()();
+  RealColumn get espessuraMedidaMm => real()();
+  RealColumn get espessuraEsperadaMm => real()();
+  TextColumn get composicaoCodigo => text()();
+  RealColumn get comprimentoMm => real()();
+  RealColumn get larguraMm => real()();
   IntColumn get pacotesPorCamada => integer().nullable()();
   IntColumn get pecasPorPacote => integer().nullable()();
   IntColumn get arranjo => integer().nullable()();
@@ -90,7 +88,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.paraTeste(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -99,16 +97,14 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await m.createTable(pendingOperations);
       }
-      if (from < 3) {
-        await m.addColumn(localOrdens, localOrdens.composicaoCodigo);
-        await m.addColumn(localOrdens, localOrdens.medidaChapa);
-      }
-      if (from < 4) {
-        await m.addColumn(localOrdens, localOrdens.arranjo);
-      }
-      if (from < 5) {
-        await m.addColumn(localOrdens, localOrdens.comprimentoMm);
-        await m.addColumn(localOrdens, localOrdens.larguraMm);
+      // v6: espessura passou da Composição pra OP (medida) + FT (esperada).
+      // `local_ordens` é só cache de leitura — recriar do zero é seguro, ela
+      // se preenche de novo na próxima consulta online. Isso também cobre
+      // as versões 3–5, que só adicionavam colunas nessa mesma tabela. A
+      // fila de apontamentos pendentes (`local_paletes`) não é tocada.
+      if (from < 6) {
+        await m.deleteTable(localOrdens.actualTableName);
+        await m.createTable(localOrdens);
       }
     },
   );

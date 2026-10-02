@@ -5,7 +5,6 @@ import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/paletes_repository.dart';
 import '../../../domain/entities/palete.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
-import '../../auth/controller/auth_controller.dart';
 import 'ordem_detalhe_conversao_view.dart';
 
 /// Tela operacional da Conversão: só OPs 802 que a Onduladeira já começou
@@ -23,20 +22,10 @@ class OrdensDisponiveisView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final usuario = ref.watch(authControllerProvider).usuario;
     final ordensAsync = ref.watch(_ordensDisponiveisProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(usuario?.nome ?? 'Ordens disponíveis'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-            onPressed: () => ref.read(authControllerProvider.notifier).sair(),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Ordens disponíveis · Conversão')),
       body: ordensAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (erro, _) =>

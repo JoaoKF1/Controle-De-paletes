@@ -46,20 +46,24 @@ class _OrdemDetalheConversaoViewState
     final quantidadePrevista = (camadas == null || semPaletizacao)
         ? null
         : camadas * ordem.pacotesPorCamada! * ordem.pecasPorPacote!;
+    // Onduladeira e Qualidade abrem esta tela só pra consulta: apontar e
+    // lançar refugo aqui são da Conversão (+ admin).
+    final podeApontar = ref.watch(permissoesProvider).apontarConversao;
 
     return Scaffold(
       appBar: AppBar(
         title: Text('OP ${ordem.numeroOp}'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_sweep_outlined),
-            tooltip: 'Lançar refugo',
-            onPressed: () => abrirDialogoLancarRefugo(
-              context,
-              ref,
-              ordemProducaoId: ordem.id,
+          if (podeApontar)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_outlined),
+              tooltip: 'Lançar refugo',
+              onPressed: () => abrirDialogoLancarRefugo(
+                context,
+                ref,
+                ordemProducaoId: ordem.id,
+              ),
             ),
-          ),
         ],
       ),
       body: paletesAsync.when(
@@ -120,7 +124,9 @@ class _OrdemDetalheConversaoViewState
                         ? 0
                         : caixasProduzidas / ordem.quantidadePedida,
                   ),
-                  if (ordem.status == 'aberta' && semPaletizacao) ...[
+                  if (!podeApontar) ...[
+                    // consulta: sem formulário de apontamento
+                  ] else if (ordem.status == 'aberta' && semPaletizacao) ...[
                     const SizedBox(height: 16),
                     Text(
                       'Ficha Técnica sem dados de paletização (pacotes por camada, peças por '
