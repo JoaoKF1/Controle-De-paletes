@@ -7,6 +7,7 @@ import '../../../core/utils/mensagem_erro.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/services/push_notifications_service.dart';
 import '../../../domain/entities/usuario.dart';
+import '../../../domain/services/permissoes.dart';
 
 enum AuthStatus { carregando, autenticado, naoAutenticado, erro }
 
@@ -124,3 +125,8 @@ class AuthController extends Notifier<AuthControllerState> {
 
 final authControllerProvider =
     NotifierProvider<AuthController, AuthControllerState>(AuthController.new);
+
+/// O que o usuário logado pode ver/fazer (ver `Permissoes`).
+final permissoesProvider = Provider<Permissoes>((ref) {
+  return Permissoes(ref.watch(authControllerProvider).usuario?.perfil ?? '');
+});

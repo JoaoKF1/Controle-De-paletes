@@ -4,16 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/apontamento_kit.dart';
 import '../../apontamento/view/ordens_abertas_view.dart';
 import '../../auth/controller/auth_controller.dart';
+import '../../cadastros/view/fichas_tecnicas_view.dart';
+import '../../cadastros/view/ordens_producao_view.dart';
+import '../../cadastros/view/usuarios_view.dart';
 import '../../conversao/view/ordens_disponiveis_view.dart';
 import '../../dashboard/view/dashboard_view.dart';
 import '../../qualidade/view/fila_analise_view.dart';
 import '../../qualidade/view/testes_qualidade_view.dart';
 import '../../sincronizacao/view/pendencias_view.dart';
-import 'clientes_view.dart';
-import 'composicoes_view.dart';
-import 'fichas_tecnicas_view.dart';
-import 'ordens_producao_view.dart';
-import 'usuarios_view.dart';
 
 const _rotulosPerfil = {
   'admin': 'Administrador',
@@ -34,13 +32,29 @@ String _iniciais(String nome) {
       .toUpperCase();
 }
 
-class CadastrosHomeView extends ConsumerWidget {
-  const CadastrosHomeView({super.key});
+/// Tela inicial única pra todos os perfis depois do login — os botões
+/// visíveis dependem do perfil (`Permissoes`, ver plano técnico, 2). Seção
+/// sem nenhum botão visível some inteira.
+class HomeView extends ConsumerWidget {
+  const HomeView({super.key});
+
+  /// Título + grade, ou nada se a seção ficou vazia pra esse perfil.
+  List<Widget> _secao(String titulo, List<_ItemMenu> itens) {
+    if (itens.isEmpty) return const [];
+    return [
+      RotuloSecaoMaiuscula(titulo),
+      _GradeMenu(itens: itens),
+      const SizedBox(height: 12),
+    ];
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usuario = ref.watch(authControllerProvider).usuario;
+    final permissoes = ref.watch(permissoesProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    void abrir(Widget tela) =>
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => tela));
 
     return Scaffold(
       body: SafeArea(
@@ -96,126 +110,70 @@ class CadastrosHomeView extends ConsumerWidget {
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    RotuloSecaoMaiuscula('CADASTROS'),
-                    _GradeMenu(
-                      itens: [
-                        _ItemMenu(
-                          icone: Icons.business,
-                          titulo: 'Clientes',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const ClientesView(),
-                            ),
-                          ),
-                        ),
-                        _ItemMenu(
-                          icone: Icons.layers,
-                          titulo: 'Composições',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const ComposicoesView(),
-                            ),
-                          ),
-                        ),
+                    ..._secao('CADASTROS', [
+                      if (permissoes.verFichasTecnicas)
                         _ItemMenu(
                           icone: Icons.description,
                           titulo: 'Fichas técnicas',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const FichasTecnicasView(),
-                            ),
-                          ),
+                          onTap: () => abrir(const FichasTecnicasView()),
                         ),
+                      if (permissoes.verOrdensProducao)
                         _ItemMenu(
                           icone: Icons.assignment,
                           titulo: 'Ordens de produção',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const OrdensProducaoView(),
-                            ),
-                          ),
+                          onTap: () => abrir(const OrdensProducaoView()),
                         ),
+                      if (permissoes.verUsuarios)
                         _ItemMenu(
                           icone: Icons.people,
                           titulo: 'Usuários',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const UsuariosView(),
-                            ),
-                          ),
+                          onTap: () => abrir(const UsuariosView()),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    RotuloSecaoMaiuscula('OPERACIONAL'),
-                    _GradeMenu(
-                      itens: [
+                    ]),
+                    ..._secao('OPERACIONAL', [
+                      if (permissoes.verOrdensOnduladeira)
                         _ItemMenu(
                           icone: Icons.layers_outlined,
                           titulo: 'Ordens em aberto',
                           distintivo: 'Onduladeira',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const OrdensAbertasView(),
-                            ),
-                          ),
+                          onTap: () => abrir(const OrdensAbertasView()),
                         ),
+                      if (permissoes.verOrdensConversao)
                         _ItemMenu(
                           icone: Icons.print_outlined,
                           titulo: 'Ordens disponíveis',
                           distintivo: 'Conversão',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const OrdensDisponiveisView(),
-                            ),
-                          ),
+                          onTap: () => abrir(const OrdensDisponiveisView()),
                         ),
+                      if (permissoes.verFilaAnalise)
                         _ItemMenu(
                           icone: Icons.shield_outlined,
                           titulo: 'Fila de análise',
                           distintivo: 'Revisão',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const FilaAnaliseView(),
-                            ),
-                          ),
+                          onTap: () => abrir(const FilaAnaliseView()),
                         ),
+                      if (permissoes.verTestesQualidade)
                         _ItemMenu(
                           icone: Icons.fact_check_outlined,
                           titulo: 'Testes de qualidade',
                           distintivo: 'Qualidade',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const TestesQualidadeView(),
-                            ),
-                          ),
+                          onTap: () => abrir(const TestesQualidadeView()),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    RotuloSecaoMaiuscula('GESTÃO'),
-                    _GradeMenu(
-                      itens: [
+                    ]),
+                    ..._secao('GESTÃO', [
+                      if (permissoes.verDashboard)
                         _ItemMenu(
                           icone: Icons.bar_chart,
                           titulo: 'Dashboard',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const DashboardView(),
-                            ),
-                          ),
+                          onTap: () => abrir(const DashboardView()),
                         ),
+                      if (permissoes.verSincronizacao)
                         _ItemMenu(
                           icone: Icons.sync,
                           titulo: 'Sincronização',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const PendenciasView(),
-                            ),
-                          ),
+                          onTap: () => abrir(const PendenciasView()),
                         ),
-                      ],
-                    ),
+                    ]),
                   ],
                 ),
               ),

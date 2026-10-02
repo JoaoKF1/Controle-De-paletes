@@ -5,13 +5,14 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/utils/mensagem_erro.dart';
 import '../../domain/entities/palete.dart';
+import '../../domain/services/calculo_palete.dart';
 import '../local/app_database.dart';
 import '../local/rede.dart';
 import '../remote/supabase_provider.dart';
 
 const _camposFichaTecnica =
     'codigo_ft, qp_padrao, comprimento_mm, largura_mm, pacotes_por_camada, pecas_por_pacote, arranjo, '
-    'clientes(razao_social), composicoes(codigo, espessura_mm)';
+    'cliente_nome, tipo_onda, papel_1, papel_2, papel_3, papel_4, papel_5, espessura_esperada_mm';
 const _selectComJoins = '*, fichas_tecnicas($_camposFichaTecnica)';
 const _selectComJoinsFiltradoPorFt =
     '*, fichas_tecnicas!inner($_camposFichaTecnica)';
@@ -362,8 +363,11 @@ class PaletesRepository {
       }
       return camadas! * ordem.pacotesPorCamada! * ordem.pecasPorPacote!;
     }
-    return ((alturaMedidaMm! / ordem.composicaoEspessuraMm) * ordem.qpPadrao)
-        .floor();
+    return quantidadeChapasOnduladeira(
+      alturaCentesimos: paraCentesimos(alturaMedidaMm!),
+      espessuraCentesimos: paraCentesimos(ordem.espessuraMedidaMm),
+      qpPadrao: ordem.qpPadrao,
+    );
   }
 }
 
@@ -377,10 +381,11 @@ LocalOrdensCompanion _paraLocalOrdem(OrdemProducaoInfo o) =>
       codigoFt: o.codigoFt,
       qpPadrao: o.qpPadrao,
       clienteNome: o.clienteNome,
-      composicaoEspessuraMm: o.composicaoEspessuraMm,
-      composicaoCodigo: Value(o.composicaoCodigo),
-      comprimentoMm: Value(o.comprimentoMm),
-      larguraMm: Value(o.larguraMm),
+      espessuraMedidaMm: o.espessuraMedidaMm,
+      espessuraEsperadaMm: o.espessuraEsperadaMm,
+      composicaoCodigo: o.composicaoCodigo,
+      comprimentoMm: o.comprimentoMm,
+      larguraMm: o.larguraMm,
       pacotesPorCamada: Value(o.pacotesPorCamada),
       pecasPorPacote: Value(o.pecasPorPacote),
       arranjo: Value(o.arranjo),
@@ -395,10 +400,11 @@ OrdemProducaoInfo _deLocalOrdem(LocalOrden o) => OrdemProducaoInfo(
   codigoFt: o.codigoFt,
   qpPadrao: o.qpPadrao,
   clienteNome: o.clienteNome,
-  composicaoEspessuraMm: o.composicaoEspessuraMm,
-  composicaoCodigo: o.composicaoCodigo ?? '—',
-  comprimentoMm: o.comprimentoMm ?? 0,
-  larguraMm: o.larguraMm ?? 0,
+  espessuraMedidaMm: o.espessuraMedidaMm,
+  espessuraEsperadaMm: o.espessuraEsperadaMm,
+  composicaoCodigo: o.composicaoCodigo,
+  comprimentoMm: o.comprimentoMm,
+  larguraMm: o.larguraMm,
   pacotesPorCamada: o.pacotesPorCamada,
   pecasPorPacote: o.pecasPorPacote,
   arranjo: o.arranjo,

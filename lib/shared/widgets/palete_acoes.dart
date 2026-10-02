@@ -5,6 +5,7 @@ import '../../core/utils/mensagem_erro.dart';
 import '../../data/repositories/qualidade_repository.dart';
 import '../../domain/entities/palete.dart';
 import '../../domain/entities/refugo.dart';
+import '../../domain/services/calculo_palete.dart';
 import '../../features/auth/controller/auth_controller.dart';
 import 'apontamento_kit.dart';
 
@@ -261,11 +262,14 @@ Future<void> _abrirDialogoCorrigir(
               ? null
               : camadas * ordem.pacotesPorCamada! * ordem.pecasPorPacote!;
         } else {
-          final altura = double.tryParse(controller.text.replaceAll(',', '.'));
-          novaQuantidade = altura == null
+          final alturaCentesimos = lerCentesimos(controller.text);
+          novaQuantidade = alturaCentesimos == null
               ? null
-              : ((altura / ordem.composicaoEspessuraMm) * ordem.qpPadrao)
-                    .floor();
+              : quantidadeChapasOnduladeira(
+                  alturaCentesimos: alturaCentesimos,
+                  espessuraCentesimos: paraCentesimos(ordem.espessuraMedidaMm),
+                  qpPadrao: ordem.qpPadrao,
+                );
         }
 
         return AlertDialog(
@@ -293,13 +297,8 @@ Future<void> _abrirDialogoCorrigir(
                         if (n == null || n <= 0) {
                           return 'Informe um número maior que zero';
                         }
-                      } else {
-                        final valor = double.tryParse(
-                          (v ?? '').replaceAll(',', '.'),
-                        );
-                        if (valor == null || valor <= 0) {
-                          return 'Informe um número válido';
-                        }
+                      } else if (lerCentesimos(v) == null) {
+                        return 'Número maior que zero, até 2 casas decimais';
                       }
                       return null;
                     },
@@ -329,9 +328,7 @@ Future<void> _abrirDialogoCorrigir(
                         ordem: ordem,
                         novaAlturaMm: ehConversao
                             ? null
-                            : double.parse(
-                                controller.text.replaceAll(',', '.'),
-                              ),
+                            : deCentesimos(lerCentesimos(controller.text)!),
                         novasCamadas: ehConversao
                             ? int.parse(controller.text)
                             : null,

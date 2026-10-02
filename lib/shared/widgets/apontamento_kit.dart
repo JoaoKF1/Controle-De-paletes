@@ -109,8 +109,8 @@ class CampoRotulado extends StatelessWidget {
 }
 
 /// Dropdown com `RotuloSecao` acima — mesmo padrão do `CampoRotulado`,
-/// pra selects em formulários de cadastro (Cliente, Composição, Ficha
-/// Técnica etc.).
+/// pra selects com poucas opções fixas (ex.: tipo de onda, perfil, turno).
+/// Lista grande (ex.: Ficha Técnica) usa `CampoSelecaoComBusca`.
 class DropdownRotulado extends StatelessWidget {
   final String rotulo;
   final String? valor;
@@ -137,6 +137,231 @@ class DropdownRotulado extends StatelessWidget {
           onChanged: onChanged,
         ),
       ],
+    );
+  }
+}
+
+/// Campo de texto livre com sugestões do que já foi digitado antes (ex.:
+/// cliente e papéis da Ficha Técnica) — mesmo visual do `CampoRotulado`.
+/// Aceita qualquer valor novo; as sugestões só evitam variações de
+/// grafia do mesmo nome.
+class CampoComSugestao extends StatefulWidget {
+  final String rotulo;
+  final TextEditingController controller;
+  final List<String> sugestoes;
+  final String? hint;
+  final String? Function(String?)? validator;
+  final TextCapitalization textCapitalization;
+  final ValueChanged<String>? onChanged;
+
+  const CampoComSugestao({
+    super.key,
+    required this.rotulo,
+    required this.controller,
+    required this.sugestoes,
+    this.hint,
+    this.validator,
+    this.textCapitalization = TextCapitalization.none,
+    this.onChanged,
+  });
+
+  @override
+  State<CampoComSugestao> createState() => _CampoComSugestaoState();
+}
+
+class _CampoComSugestaoState extends State<CampoComSugestao> {
+  final _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RotuloSecao(widget.rotulo),
+        RawAutocomplete<String>(
+          textEditingController: widget.controller,
+          focusNode: _focusNode,
+          optionsBuilder: (valor) {
+            final termo = valor.text.trim().toLowerCase();
+            return widget.sugestoes
+                .where(
+                  (s) =>
+                      s.toLowerCase().contains(termo) &&
+                      s.toLowerCase() != termo,
+                )
+                .take(8);
+          },
+          onSelected: (s) => widget.onChanged?.call(s),
+          fieldViewBuilder: (context, controller, focusNode, onSubmit) =>
+              TextFormField(
+                controller: controller,
+                focusNode: focusNode,
+                decoration: InputDecoration(hintText: widget.hint),
+                validator: widget.validator,
+                textCapitalization: widget.textCapitalization,
+                onChanged: widget.onChanged,
+                onFieldSubmitted: (_) => onSubmit(),
+              ),
+          optionsViewBuilder: (context, onSelected, opcoes) => Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(8),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxHeight: 240,
+                  maxWidth: 360,
+                ),
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  children: [
+                    for (final opcao in opcoes)
+                      ListTile(
+                        dense: true,
+                        title: Text(opcao),
+                        onTap: () => onSelected(opcao),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Seleção de 1 item numa lista potencialmente grande (ex.: Ficha Técnica
+/// no cadastro de OP) — o campo abre um diálogo com busca em vez de um
+/// dropdown, que fica inutilizável com centenas de itens. Valida como
+/// campo obrigatório do `Form`.
+class CampoSelecaoComBusca<T> extends StatelessWidget {
+  final String rotulo;
+  final T? valor;
+  final List<T> itens;
+  final String Function(T) titulo;
+  final String Function(T)? subtitulo;
+  final ValueChanged<T> onSelecionado;
+  final String hint;
+
+  const CampoSelecaoComBusca({
+    super.key,
+    required this.rotulo,
+    required this.valor,
+    required this.itens,
+    required this.titulo,
+    this.subtitulo,
+    required this.onSelecionado,
+    this.hint = 'Toque para buscar',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RotuloSecao(rotulo),
+        FormField<T>(
+          // Key pelo valor: o FormField guarda o próprio estado, então
+          // precisa ser recriado quando a seleção muda por fora.
+          key: ValueKey(valor),
+          initialValue: valor,
+          validator: (v) => v == null ? 'Obrigatório' : null,
+          builder: (estado) => InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () async {
+              final escolhido = await _abrirBusca(context);
+              if (escolhido != null) onSelecionado(escolhido);
+            },
+            child: InputDecorator(
+              decoration: InputDecoration(
+                hintText: hint,
+                errorText: estado.errorText,
+                suffixIcon: const Icon(Icons.search),
+              ),
+              isEmpty: valor == null,
+              child: valor == null
+                  ? null
+                  : Text(
+                      subtitulo == null
+                          ? titulo(valor as T)
+                          : '${titulo(valor as T)} · ${subtitulo!(valor as T)}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<T?> _abrirBusca(BuildContext context) {
+    return showDialog<T>(
+      context: context,
+      builder: (dialogContext) {
+        var termo = '';
+        return StatefulBuilder(
+          builder: (dialogContext, setState) {
+            final filtrados = itens.where((item) {
+              final texto = '${titulo(item)} ${subtitulo?.call(item) ?? ''}'
+                  .toLowerCase();
+              return texto.contains(termo.trim().toLowerCase());
+            }).toList();
+            return AlertDialog(
+              title: Text(rotulo),
+              content: SizedBox(
+                width: 420,
+                height: 420,
+                child: Column(
+                  children: [
+                    TextField(
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        hintText: 'Buscar…',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (v) => setState(() => termo = v),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: filtrados.isEmpty
+                          ? const Center(child: Text('Nada encontrado.'))
+                          : ListView.builder(
+                              itemCount: filtrados.length,
+                              itemBuilder: (_, i) {
+                                final item = filtrados[i];
+                                return ListTile(
+                                  title: Text(titulo(item)),
+                                  subtitle: subtitulo == null
+                                      ? null
+                                      : Text(subtitulo!(item)),
+                                  onTap: () =>
+                                      Navigator.of(dialogContext).pop(item),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancelar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -357,8 +582,16 @@ class SeloAprovacao extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final (cor, icone, texto) = switch (resultado) {
       ResultadoCampo.aprovado => (Colors.green, Icons.check_circle, 'Aprovado'),
-      ResultadoCampo.reprovado => (colorScheme.error, Icons.cancel, 'Reprovado'),
-      ResultadoCampo.neutro => (colorScheme.onSurfaceVariant, Icons.remove_circle_outline, '—'),
+      ResultadoCampo.reprovado => (
+        colorScheme.error,
+        Icons.cancel,
+        'Reprovado',
+      ),
+      ResultadoCampo.neutro => (
+        colorScheme.onSurfaceVariant,
+        Icons.remove_circle_outline,
+        '—',
+      ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -373,9 +606,10 @@ class SeloAprovacao extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             texto,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: cor, fontWeight: FontWeight.w600),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: cor,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

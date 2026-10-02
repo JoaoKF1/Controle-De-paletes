@@ -44,6 +44,38 @@ void main() {
       );
     });
 
+    test('app e banco em versões diferentes', () {
+      // Erro real visto com o app novo contra o banco sem a migration.
+      expect(
+        mensagemErro(
+          const PostgrestException(
+            message:
+                "Could not find the 'cliente_nome' column of "
+                "'fichas_tecnicas' in the schema cache",
+            code: 'PGRST204',
+          ),
+        ),
+        mensagemBancoDesatualizado,
+      );
+      expect(
+        mensagemErro(
+          const PostgrestException(
+            message: 'column fichas_tecnicas_1.cliente_nome does not exist',
+            code: '42703',
+          ),
+        ),
+        mensagemBancoDesatualizado,
+      );
+      Object? erroDeTipo;
+      try {
+        final Object? nulo = null;
+        nulo as String;
+      } catch (e) {
+        erroDeTipo = e;
+      }
+      expect(mensagemErro(erroDeTipo!), mensagemBancoDesatualizado);
+    });
+
     test('erro da Edge Function usa o campo "erro" do corpo', () {
       expect(
         mensagemErro(
