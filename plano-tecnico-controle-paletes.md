@@ -22,12 +22,32 @@ Isso importa pro app porque **o `tipo_chapa` de um apontamento da Onduladeira de
 
 ## 2. Perfis e responsabilidades
 
+O sistema é um **complemento** do ERP da empresa pro pessoal de apontamento e Qualidade (e futuramente outras áreas, como Expedição) — não um segundo ERP. Por isso não tem cadastro próprio de Cliente nem de Composição: esses dados entram direto na Ficha Técnica (ver seção 5).
+
 | Perfil | O que faz no sistema |
 |---|---|
-| `admin` | Cadastros base (Cliente, Composição, Ficha Técnica, OP), gestão de Usuários, e acesso a todas as telas operacionais dos outros perfis — pra poder testar/apoiar qualquer fluxo |
-| `onduladeira` | Aponta paletes de chapa semi-elaborada nas OPs em aberto |
-| `conversao` | Aponta paletes de chapa elaborada, a partir do que a Onduladeira já produziu — **entregue** |
-| `qualidade` | Abre e decide ocorrências de qualidade sobre paletes já apontados; segrega material — **entregue** |
+| `admin` | Cadastra e edita Fichas Técnicas, cria OP, gerencia Usuários, e acessa todas as telas operacionais dos outros perfis — pra poder testar/apoiar qualquer fluxo |
+| `onduladeira` | **Cadastra as OPs** (802 e 803), medindo a espessura da chapa no cadastro (ver 9.1), e aponta paletes de chapa nelas; encerra a produção da OP |
+| `conversao` | Aponta paletes de chapa elaborada nas OPs 802, a partir do que a Onduladeira já produziu. Não cria OP |
+| `qualidade` | Abre e decide ocorrências de qualidade sobre paletes já apontados; segrega material; registra testes de qualidade |
+
+**Navegação**: todo perfil cai na **mesma tela inicial** depois do login (`HomeView`, `lib/features/home/view/home_view.dart`) — o que muda por perfil são os botões visíveis nela. Seção sem nenhum botão visível (ex.: CADASTROS pra Qualidade) some inteira. A matriz vive num lugar só, `Permissoes` (`lib/domain/services/permissoes.dart`), com teste próprio (`test/permissoes_test.dart`) — mudar quem vê o quê é mudar ali.
+
+| Tela / ação | admin | onduladeira | conversao | qualidade |
+|---|:-:|:-:|:-:|:-:|
+| Fichas técnicas (consulta) | ✓ | ✓ | ✓ | |
+| Fichas técnicas (criar/editar) | ✓ | | | |
+| Ordens de produção (consulta) | ✓ | ✓ | ✓ | |
+| Ordens de produção (criar) | ✓ | ✓ | | |
+| Usuários | ✓ | | | |
+| Ordens em aberto (tela da Onduladeira) | ✓ | ✓ | ✓ | ✓ |
+| Ordens disponíveis (tela da Conversão) | ✓ | ✓ | ✓ | ✓ |
+| Fila de análise (consulta) | ✓ | ✓ | | ✓ |
+| Resolver ocorrência | ✓ | | | ✓ |
+| Testes de qualidade | ✓ | | | ✓ |
+| Dashboard / Sincronização | ✓ | | | |
+
+Abrir a tela de **outro setor** é só consulta: o formulário de apontamento, "Lançar refugo" e "Encerrar produção" só aparecem pro setor dono da tela (+ admin). As ações sobre um palete tocado na lista continuam seguindo 9.5 (qualquer perfil pede revisão; Qualidade segrega; o setor dono corrige/exclui). Esconder botão é UX — quem garante de verdade é o RLS (seção 6), que segue a mesma matriz.
 
 (Fase 2, fora do escopo atual: perfil `expedicao` — ver seção 10.)
 
@@ -37,7 +57,7 @@ Isso importa pro app porque **o `tipo_chapa` de um apontamento da Onduladeira de
 
 - **App**: Flutter (`lib/`). Hoje builda e roda de verdade em **Windows desktop** (dev/teste do dia a dia) e **Android** (APK gerado e testado — ver seção 12). iOS ainda não foi construído; segue o plano original de build via Codemagic, sem depender de Mac local.
 - **Gerenciamento de estado**: Riverpod (`flutter_riverpod`) — `Provider`, `FutureProvider` (com `.family` quando o dado depende de um parâmetro, ex. paletes de uma OP) e `StreamProvider` (dados que atualizam sozinhos, ex. fila de pendências offline).
-- **Backend**: Supabase (Postgres + Auth + Realtime), client `supabase_flutter`. Schema sempre versionado em `supabase/migrations/`, aplicado via Supabase CLI (`supabase db push`) — nunca SQL colado direto no dashboard (ver seção 7). **Plano gratuito pausa o projeto depois de 7 dias sem uso**: o domínio `<ref>.supabase.co` deixa de existir e o app passa a mostrar "Sem conexão com o servidor" em tudo, inclusive no login. Já aconteceu (projeto parado de 19/08 a 01/10/2026) — o dado não se perde, mas precisa clicar em *Restore project* no dashboard (prazo de 90 dias depois da pausa). Durante o piloto, ou usa pelo menos 1x por semana, ou sobe pro plano Pro.
+- **Backend**: Supabase (Postgres + Auth + Realtime), client `supabase_flutter`. Schema sempre versionado em `supabase/migrations/`, aplicado via Supabase CLI (`supabase db push`) — nunca SQL colado direto no dashboard (ver seção 7). **Plano gratuito pausa o projeto depois de 7 dias sem uso**: o domínio `<ref>.supabase.co` deixa de existir e o app passa a mostrar "Sem conexão com o servidor" em tudo, inclusive no login. Já aconteceu (projeto parado de ~19/08 até ser restaurado em 01/10/2026) — o dado não se perde, mas precisa clicar em *Restore project* no dashboard (prazo de 90 dias depois da pausa). Durante o piloto, ou usa pelo menos 1x por semana, ou sobe pro plano Pro.
 - **Modo offline**: SQLite local via `drift` (+ `sqlite3_flutter_libs`, `path_provider`, `path`) — cache de leitura + fila de escrita (outbox), ver 9.12/9.13.
 - **Configuração/segredos**: `flutter_dotenv`, lendo um `.env` (URL + chave pública do Supabase) empacotado como asset — a `service_role` key nunca entra no app, só na Edge Function (ver 9.8).
 - **Gráficos (Dashboard)**: `fl_chart`, com paleta e padrões de acessibilidade validados via skill de dataviz (ver Sprint 7).
@@ -66,18 +86,20 @@ lib/
 │   └── repositories/          # abstrai local x remoto pra cada entidade
 │
 ├── domain/
-│   ├── entities/               # Cliente, Composicao, FichaTecnica, OrdemProducao,
-│   │                            # Palete, Refugo, OcorrenciaQualidade, Usuario
-│   └── services/               # cálculo de quantidade, geração de etiqueta, sync
+│   ├── entities/               # FichaTecnica, OrdemProducao, Palete, Refugo,
+│   │                            # OcorrenciaQualidade, TesteQualidade, Usuario
+│   └── services/               # cálculo exato de quantidade (calculo_palete),
+│                                # permissões por perfil, avaliação de qualidade
 │
 ├── features/
 │   ├── auth/                   # login
-│   ├── apontamento/            # home "Ordens em aberto" + form de apontamento (Onduladeira)
+│   ├── home/                   # tela inicial única, botões por perfil
+│   ├── apontamento/            # "Ordens em aberto" + form de apontamento (Onduladeira)
 │   ├── conversao/              # equivalente da Onduladeira, mas para o setor Conversão
 │   ├── consulta/                # tela somente leitura do setor oposto
 │   ├── qualidade/               # abrir ocorrência + fila de análise + liberar/reprovar
 │   ├── refugo/                   # lançamento de refugo
-│   ├── cadastros/                # CRUD Cliente/Composição/FT/OP/Usuários (Admin)
+│   ├── cadastros/                # Ficha Técnica, OP, Usuários
 │   └── dashboard/                 # gráficos e relatórios (desktop)
 │
 ├── shared/
@@ -95,10 +117,12 @@ Cada pasta dentro de `features/` segue o mesmo padrão interno: `view/`, `contro
 O schema real do banco vive em `supabase/migrations/` — esse é o histórico versionado e a fonte de verdade, mantido sincronizado com `supabase db pull` e alterado com `supabase db push` (ver seção 7). Esta seção descreve as tabelas em prosa, pra entender o modelo de dados sem precisar abrir os arquivos de migration.
 
 - **`profiles`**: um perfil por usuário autenticado, ligado ao `auth.users` nativo do Supabase. Guarda `login` (o "usuário" curto que a pessoa digita), `nome`, `perfil` (`onduladeira`/`conversao`/`qualidade`/`admin`) e `ativo`.
-- **`clientes`**: cadastro simples — razão social, cidade, UF, ativo.
-- **`composicoes`**: os "tipos de onda" (ex: `T140M130T140/B`), cada um com sua `espessura_mm`. `codigo` é gerado pelo app a partir de `tipo_onda` (`B`/`C` = onda simples, `DB`/`DC` = onda dupla) e dos papéis escolhidos (`papel_1`..`papel_5` — só 3 preenchidos na onda simples, os 5 na dupla), não é mais digitado livre — ver 5.1.
-- **`fichas_tecnicas`**: o produto em si — código, cliente, composição, `comprimento_mm`/`largura_mm` (medida da chapa, ver 5.1), `qp_padrao` (número de pilhas por palete), as 8 colunas de qualidade opcionais (ver 9.6), até 5 vincos opcionais (ver 5.1) e os campos de paletização/arranjo da Conversão (ver 5.3).
-- **`ordens_producao`**: a OP — número (cujo prefixo 802/803 define o roteamento, ver seção 1), ficha técnica, quantidade pedida, data do pedido e `status` (`aberta`/`concluida`).
+- **`fichas_tecnicas`**: o produto em si — código, **`cliente_nome`** (texto), a composição (**`tipo_onda`** + **`papel_1`..`papel_5`**, ver 5.1), **`espessura_esperada_mm`**, `comprimento_mm`/`largura_mm` (medida da chapa, ver 5.1), `qp_padrao` (número de pilhas por palete), as 8 colunas de qualidade opcionais (ver 9.6), até 5 vincos opcionais (ver 5.1) e os campos de paletização/arranjo da Conversão (ver 5.3).
+- **`ordens_producao`**: a OP — número (cujo prefixo 802/803 define o roteamento, ver seção 1), ficha técnica, quantidade pedida, data do pedido, `status` (`aberta`/`concluida`) e **`espessura_medida_mm`** (medida pela Onduladeira no cadastro — é a que entra no cálculo, ver 9.1).
+
+Cliente e Composição **não têm cadastro próprio**: o ERP da empresa já é a fonte desses dados, e manter cadastro duplicado aqui só deixava o sistema mais pesado sem ganho pro apontamento. As antigas tabelas `clientes`/`composicoes` foram removidas (migrations `20261002120000` e `20261002130000`).
+
+**Dados zerados em 01/10/2026** pra começar os testes do zero: todas as tabelas de dados foram esvaziadas, menos `profiles` (os usuários e logins continuam). Backup dos dados de teste anteriores em `F:\Rep2\backup-controle-paletes-2026-10-01.sql`, fora do repositório.
 - **`paletes`**: cada apontamento — OP, número sequencial (único por OP), `altura_medida_mm` (Onduladeira) ou `camadas` (Conversão) — um dos dois, nunca os dois —, quantidade calculada, `tipo_chapa`, `setor_origem` (`onduladeira`/`conversao`), código de barras (único globalmente, é o valor impresso na etiqueta), responsável, data/hora, e `revisado_por` (quem debitou saldo por último — ver 9.4).
 - **`refugos`**: chapa perdida/descartada, vinculada à OP (não a um palete específico) — ver 9.3.
 - **`ocorrencias_qualidade`** e **`historico_ocorrencia`**: ocorrências abertas sobre um palete e o histórico de mudança de status — ver 9.4.
@@ -108,7 +132,7 @@ Observações:
 - `paletes.numero_sequencial` é único **por OP** (não globalmente).
 - `quantidade_calculada` é sempre gravada pelo app a partir da fórmula em 9.1 — nunca editável direto pelo usuário.
 
-### 5.1 Campos de qualidade da Ficha Técnica
+### 5.1 Campos da Ficha Técnica (qualidade, medida, vincos, cliente e composição)
 
 Colunas adicionadas depois do Sprint 1, pra cobrir as especificações técnicas do produto (ver 9.6): `gramatura`, `coluna`, `cobb_interno_min/max`, `cobb_externo_min/max`, `mullen`, `compressao`, `resina_interna_min/max`, `resina_externa_min/max`. Todas opcionais (nullable) — nem toda FT precisa preencher tudo de cara.
 
@@ -117,6 +141,13 @@ Colunas adicionadas depois do Sprint 1, pra cobrir as especificações técnicas
 **Medida da chapa** era um único campo de texto livre (`medida_chapa`, ex: `"733 x 1.964"`) — virou 2 colunas numéricas, `comprimento_mm` e `largura_mm`, ambas obrigatórias. A migração que fez a troca (nesse passe de design pré-piloto) leu o texto existente pra preencher as duas colunas novas antes de derrubar a antiga, então nenhuma FT já cadastrada perdeu dado.
 
 **Vincos**: `vinco_1_mm` até `vinco_5_mm`, todas opcionais e sem ordem fixa entre si — uma caixa pode já sair vincada (linhas de dobra marcadas) direto da Onduladeira, então a FT guarda até 5 medidas de vinco conforme o desenho da caixa precisar.
+
+**Cliente e composição direto na FT**:
+
+- **`cliente_nome`** (obrigatório): texto livre, sem UF/cidade. O formulário sugere os nomes já usados em outras FTs (`CadastrosRepository.listarSugestoesFichaTecnica`) pra evitar "ACME" e "Acme Ltda" virarem clientes diferentes; gravado em maiúsculas.
+- **`tipo_onda`** (obrigatório): `B`/`C` = onda simples, **3 papéis** (capa/miolo/capa); `DB`/`DC` = onda dupla, **5 papéis** (capa/miolo/capa/miolo/capa). O formulário mostra só a quantidade certa de campos pro tipo escolhido, e o banco garante a mesma regra (`fichas_tecnicas_papeis_por_onda_check`: onda simples com `papel_4`/`papel_5` nulos, dupla com os 5 preenchidos).
+- **Papéis** (`papel_1`..`papel_5`): texto livre (a fábrica tem seus códigos próprios, ex.: `T140`, `M130`), com sugestão dos papéis já usados em outras FTs. A composição exibida (ex.: `T140M130T140/B`) é **gerada pelo app** (`FichaTecnica.composicao`: papéis concatenados + `/` + tipo de onda), nunca digitada nem guardada à parte.
+- **`espessura_esperada_mm`** (obrigatório, `numeric(6,2)`): espessura de referência da chapa daquele produto. **Não** entra no cálculo do palete — serve pro aviso quando a espessura medida na OP fugir dela (ver 9.1).
 
 ### 5.2 Refugo e segregação (Sprint 5)
 
@@ -132,13 +163,13 @@ Colunas adicionadas depois do Sprint 1, pra cobrir as especificações técnicas
 
 ### 5.4 Edição dos cadastros base
 
-Sprint 1 só tinha `insert` pros cadastros base (Cliente, Composição, Ficha Técnica, OP) — não dava pra corrigir nada depois de criado. A Ficha Técnica agora tem edição pelo app (tela de lista, toca num item, abre o mesmo formulário preenchido, salva com `update`), o que exigiu adicionar a policy de `update` que faltava (ver 9.10). Clientes, Composições e OP ainda só têm tela de criação — mesma pendência, ainda não resolvida pra essas três.
+A Ficha Técnica tem edição pelo app (Admin): tela de lista, toca num item, abre o mesmo formulário preenchido, salva com `update`. Pros outros perfis, tocar numa FT abre só a consulta (somente leitura). A OP ainda só tem tela de criação — corrigir uma OP cadastrada errada continua pendente. A espessura medida da OP, em particular, **nunca** pode mudar depois do primeiro palete (ver 9.1).
 
 ---
 
 ## 6. Políticas de segurança (RLS)
 
-Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer perfil autenticado **lê** tudo. `paletes` tem RLS habilitado com uma policy de leitura geral e uma policy de insert por setor, cada uma conferindo que `setor_origem` bate com o `perfil` de quem está inserindo (consultando `profiles`). O mesmo padrão (leitura geral + escrita restrita ao perfil dono) se repete para `refugos` (Onduladeira/Conversão podem lançar) e `ocorrencias_qualidade` (qualquer setor abre; só `qualidade` atualiza o `status`). Os cadastros base (`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`) ficam com `insert`/`update` restritos a `perfil = 'admin'` (sem `delete` ainda — ver 9.10), com leitura liberada geral. O SQL de cada policy vive versionado em `supabase/migrations/`.
+Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer perfil autenticado **lê** tudo. `paletes` tem RLS habilitado com uma policy de leitura geral e uma policy de insert por setor, cada uma conferindo que `setor_origem` bate com o `perfil` de quem está inserindo (consultando `profiles`). O mesmo padrão (leitura geral + escrita restrita ao perfil dono) se repete para `refugos` (Onduladeira/Conversão podem lançar) e `ocorrencias_qualidade` (qualquer setor abre; só `qualidade` atualiza o `status`). Nos cadastros base, `fichas_tecnicas` tem `insert`/`update` restritos a `admin`; `ordens_producao` aceita `insert`/`update` de `admin` **e** `onduladeira` (quem cadastra e encerra a OP). Nenhum dos dois tem `delete` ainda (ver 9.10); leitura liberada geral. O SQL de cada policy vive versionado em `supabase/migrations/`.
 
 ---
 
@@ -159,7 +190,7 @@ Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer
 | Sprint | Entrega |
 |---|---|
 | 0 | Criação do repositório no GitHub, setup do projeto Flutter, projeto Supabase, autenticação, deploy do schema + RLS |
-| 1 | Cadastros base (Admin): Cliente, Composição, Ficha Técnica (com campos de qualidade), OP — **entregue** |
+| 1 | Cadastros base: Ficha Técnica (com cliente, composição e campos de qualidade) e OP — **entregue** |
 | 2 | Gestão de Usuários (Admin): criar/editar/trocar senha/desativar direto pelo app — **entregue**, testado em `feat/usuarios` |
 | 3 | Apontamento de palete (Onduladeira): tela operacional, cálculo automático, gravação — **entregue**, testado em `feat/apontamento-palete` |
 | 4 | Consulta em tempo real (Conversão) + apontamento próprio (chapa elaborada) — **entregue**, testado em `feat/consulta-conversao`. Só OPs com prefixo **802** entram na fila de trabalho da Conversão. Fórmula própria por pacote/camada, com campos novos na FT (ver 5.3, 9.1) |
@@ -168,6 +199,7 @@ Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer
 | 7 | Dashboard e relatórios (desktop) — **entregue**. Acessível pelo Admin em Cadastros. KPIs (OPs abertas/concluídas, ocorrências em análise) + produção por dia/setor (linha) + refugo por motivo (barra), com `fl_chart` |
 | 8 | Modo offline (SQLite local + sincronização) — **entregue**. Fase 1: cache de OPs/paletes + apontamento offline pra Onduladeira e Conversão (ver 9.12). Fase 2: refugo, pedir revisão de qualidade e cadastros do Admin, com fila genérica (ver 9.13) — o que depende de saldo atual do palete (segregar/resolver/corrigir/excluir) continua exigindo conexão de propósito |
 | 9 | Testes de qualidade nas chapas: tela pra Qualidade registrar os resultados **medidos** de uma OP, comparando com os valores-alvo/faixa já cadastrados na Ficha Técnica, com selo de aprovado/reprovado por campo (ver 9.6). **Parte 1** (cadastro de faixa mín/máx pra Cobb/Resina na FT, tela de registro/histórico de teste, avaliação automática) e **Parte 2** (push notification pra Onduladeira via Firebase, respeitando o turno de cada usuário — ver 12.1) implementadas — validando com o usuário, testando no APK Android de verdade |
+| 9.5 | Simplificação pré-piloto, a partir de um levantamento na empresa do que é necessário: Cliente/Composição absorvidos pela FT (papéis por tipo de onda, com sugestão), espessura **medida na OP** pela Onduladeira e usada no cálculo com aritmética exata (ver 9.1), Onduladeira passa a cadastrar OP, tela inicial única com botões por perfil (ver 2) — **entregue**, validado pelo usuário no Windows; dados de teste zerados em 01/10/2026 pra recomeçar os testes |
 | 10 | Testes com usuários piloto (Onduladeira, Conversão, Qualidade), ajustes finais — passe de design/UX já feito antes de começar (ver seção 11), incluindo a correção da semântica de `quantidade_pedida` por setor (ver 9.1) e o primeiro APK Android gerado e testado (ver seção 12) |
 
 ---
@@ -179,12 +211,14 @@ Regra geral: cada setor só **escreve** nos paletes da própria origem; qualquer
 A Onduladeira conta **chapas**, medindo a altura da pilha em mm. A Conversão conta **caixas** já paletizadas, mas não mede altura nenhuma — o produto dela vem embalado em pacotes (ex: pacote de 30 caixas), com vários pacotes lado a lado por camada, e o operador só informa **quantas camadas** o palete tem:
 
 ```
-Onduladeira: floor( (altura_medida_mm ÷ espessura_mm da composição) × qp_padrao da FT )
+Onduladeira: floor( (altura_medida_mm ÷ espessura_medida_mm da OP) × qp_padrao da FT )
 Conversão:   camadas × pacotes_por_camada da FT × pecas_por_pacote da FT
 ```
 
-- **`altura_medida_mm`** (só Onduladeira): altura da pilha de chapas, medida pelo operador na hora do apontamento.
-- **`espessura_mm`** (da Composição/tipo de onda): espessura de uma chapa individual — `altura ÷ espessura` dá quantas chapas cabem numa pilha daquela altura.
+- **`altura_medida_mm`** (só Onduladeira): altura da pilha de chapas, medida pelo operador na hora do apontamento. Até 2 casas decimais.
+- **`espessura_medida_mm`** (da **OP**): espessura real de uma chapa, medida pela Onduladeira **no cadastro da OP**, no início da produção — `altura ÷ espessura` dá quantas chapas cabem numa pilha daquela altura. Obrigatória (sem ela a OP não é cadastrada), até 2 casas decimais. Cada OP mede de novo, mesmo sendo da mesma FT. **Depois do primeiro palete apontado, não muda mais** — trigger `ordens_producao_travar_espessura` no banco recusa a alteração, pra a quantidade dos paletes já apontados nunca ficar inconsistente com a espessura gravada.
+- **Aviso de divergência**: no cadastro da OP, se a espessura medida diferir **mais de 10%** da `espessura_esperada_mm` da FT, aparece um aviso (não bloqueia — pode ser chapa fora do padrão de verdade; serve pra pegar erro de digitação).
+- **Aritmética exata, nunca ponto flutuante** (`lib/domain/services/calculo_palete.dart`): `double` não representa a maioria dos decimais exatamente, e a fórmula arredonda pra baixo — exemplo real encontrado: altura 1037,59 mm, espessura 2,54, QP 2 dá exatamente 817 chapas, mas em `double` sai 816,99999… → **816**. Por isso altura e espessura são convertidas pra **centésimos de mm** (inteiros) — lidas direto do texto digitado (`lerCentesimos`, sem passar por `double`) ou do banco (`paraCentesimos`, com `round`) — e a conta vira `(altura × qp) ÷ espessura` em divisão inteira, que é o `floor` exato. No banco as duas espessuras são `numeric(6,2)`, não `float`. Coberto por `test/calculo_palete_test.dart`, incluindo os casos em que a fórmula antiga errava.
 - **`qp_padrao`** (da Ficha Técnica): número de **pilhas por palete** daquele produto — um palete físico é montado com várias pilhas lado a lado, então multiplicar pelo `qp_padrao` dá o total de chapas do palete inteiro.
 - **`camadas`** (só Conversão): quantas camadas de pacote o palete tem — contado direto pelo operador, não calculado a partir de medida nenhuma.
 - **`pacotes_por_camada`** (da Ficha Técnica): quantos pacotes ficam lado a lado em cada camada.
@@ -238,7 +272,7 @@ Ao ler o código de barras de um palete, as ações disponíveis mudam conforme 
 
 ### 9.6 Campos de qualidade da Ficha Técnica e teste de qualidade (Sprint 9)
 
-Cada Ficha Técnica tem especificações técnicas próprias do produto (não da Composição/tipo de onda, que é compartilhada entre várias FTs): `Gramatura`, `Coluna`, `Cobb Interno`, `Cobb Externo`, `Mullen`, `Compressão`, `Resina Interna`, `Resina Externa`. Todos opcionais no cadastro — ver 5.1.
+Cada Ficha Técnica tem especificações técnicas próprias do produto: `Gramatura`, `Coluna`, `Cobb Interno`, `Cobb Externo`, `Mullen`, `Compressão`, `Resina Interna`, `Resina Externa`. Todos opcionais no cadastro — ver 5.1.
 
 **Teste de qualidade** (`testes_qualidade`): a Qualidade registra os valores medidos de uma OP — sempre por **OP**, nunca por palete específico, porque o teste representa uma amostragem do lote, não uma chapa isolada. Os 8 campos do teste são todos opcionais e independentes entre si: nem toda chapa tem, por exemplo, Cobb ou Resina testado, então não faz sentido obrigar o preenchimento de tudo pra salvar um teste.
 
@@ -263,11 +297,13 @@ Como qualquer usuário logado precisa ler seu próprio perfil, existe uma policy
 
 ### 9.9 Admin tem acesso a tudo, inclusive telas operacionais
 
-O perfil `admin` não fica restrito aos cadastros — ele também acessa as telas de cada setor (Onduladeira, Conversão, Qualidade) a partir da própria home de Cadastros, pra poder testar/apoiar qualquer fluxo. Isso exige que as policies de escrita de cada setor também aceitem admin (via `is_admin()`), não só o dono do setor — vale pra `paletes`, `refugos` e `ocorrencias_qualidade`.
+O perfil `admin` não fica restrito aos cadastros — na tela inicial ele vê todos os botões (ver a matriz na seção 2), inclusive as telas de cada setor (Onduladeira, Conversão, Qualidade), pra poder testar/apoiar qualquer fluxo. Isso exige que as policies de escrita de cada setor também aceitem admin (via `is_admin()`), não só o dono do setor — vale pra `paletes`, `refugos` e `ocorrencias_qualidade`.
 
 ### 9.10 RLS dos cadastros base
 
-`clientes`, `composicoes`, `fichas_tecnicas`, `ordens_producao`: leitura liberada pra qualquer autenticado, `insert` e `update` restritos a quem tem `perfil = 'admin'` (via `is_admin()`). Não existe `delete` em nenhuma das quatro ainda — cadastro errado hoje só dá pra corrigir editando (FT já tem tela pra isso, ver 5.4), não apagando.
+- **`fichas_tecnicas`**: leitura liberada pra qualquer autenticado; `insert` e `update` só `admin` (via `is_admin()`).
+- **`ordens_producao`**: leitura liberada; `insert` e `update` pra `admin` e `onduladeira` (via `perfil_atual()`, função `security definer` que devolve o perfil de quem está logado — mesmo motivo do `is_admin()`, evitar recursão de RLS consultando `profiles`). A Onduladeira precisa de `update` pra encerrar a OP. Antes da migration `20261002120000` o `update` era só admin, então o "Encerrar produção" da Onduladeira **não encerrava nada**: um update barrado pelo RLS não dá erro no PostgREST, só afeta 0 linhas. Desde então o app confere quantas linhas o update afetou (`CadastrosRepository._tentarOuEnfileirar`) e mostra "Você não tem permissão para fazer isso." em vez de fingir que salvou.
+- Não existe `delete` em nenhuma das duas ainda — cadastro errado hoje só dá pra corrigir editando (FT, ver 5.4), não apagando.
 
 ### 9.11 RLS de refugo, ocorrência e correção de palete (Sprint 5)
 
@@ -293,7 +329,7 @@ Cobre só o caminho crítico: continuar apontando palete mesmo sem internet, pra
 
 Estende a mesma fila de pendentes da Fase 1, mas de forma genérica: uma única tabela local (`PendingOperations`, `tipo` + `payload` json) em vez de uma tabela por entidade. Cobre só as escritas que **não dependem de ler o estado atual de nada no servidor antes** — por isso o recorte não é "tudo", é bem específico:
 
-- **Entram na fila**: lançar refugo, pedir revisão de qualidade, criar Cliente/Composição/Ficha Técnica/OP, editar Ficha Técnica. Nenhuma dessas precisa saber o que já existe no servidor pra ser válida — só grava um registro novo (ou atualiza um id que o app já tem).
+- **Entram na fila**: lançar refugo, pedir revisão de qualidade, criar Ficha Técnica/OP, editar Ficha Técnica. Nenhuma dessas precisa saber o que já existe no servidor pra ser válida — só grava um registro novo (ou atualiza um id que o app já tem).
 - **Não entram — continuam exigindo conexão**: segregar inteiro, resolver ocorrência, corrigir apontamento, excluir totalmente. Todas essas debitam em cima do **saldo atual** do palete; fazer isso com um número que pode estar desatualizado (por exemplo, outra ocorrência já debitou uma parte enquanto o aparelho estava offline) arrisca um débito incorreto que o app não teria como perceber sozinho. Diferente do `numero_sequencial` do palete (que só é "cosmético" e se resolve sozinho no servidor), aqui o próprio valor sendo gravado depende do estado — não dá pra adiar a leitura com segurança.
 - **Diferença de visibilidade em relação à Fase 1**: apontamento de palete tem cache próprio, então o item pendente aparece na lista de paletes da OP, junto com os outros. Refugo/ocorrência/cadastros não têm lista em cache — o item some da tela de origem até sincronizar. A confirmação de que "salvou, só não sincronizou ainda" fica na tela **Pendências de sincronização** (Admin, em Cadastros), que mostra as duas filas (apontamentos + fila genérica) ao vivo, com o erro de cada item que falhar e um botão de sincronizar manualmente.
 - O dispatcher da fila genérica (`Sincronizador._enviar`) interpreta `tipo` como `<tabela>_criar` ou `<tabela>_atualizar` pros cadastros, e como `refugo`/`ocorrencia_abrir` pros outros dois — não precisa de um caso novo por tabela, só de payload com as mesmas chaves que o insert/update já usaria.
@@ -333,25 +369,27 @@ Passe de design feito depois do Sprint 8, preparando o terreno pros sprints segu
 **Tema e fundamentos**
 
 - **Cor de marca**: `#0EA9F6` (azul institucional da empresa), semente do `ColorScheme` do app (`lib/core/theme/app_theme.dart`), com tema claro e escuro. Independente da paleta usada nos gráficos do Dashboard (`#2A78D6`/`#EB6834`), escolhida à parte por contraste pra daltonismo — ver seção do Dashboard no Sprint 7.
-- **Responsivo por padrão**: o app roda tanto em desktop (Windows, usado hoje pra admin/cadastros e testes) quanto em celular/tablet no chão de fábrica (onde o operador vai usar o leitor de código de barras via `mobile_scanner`, Sprint 6). Formulários e listas ficam com largura máxima confortável em telas largas e ocupam a tela toda em telas estreitas, via `LarguraFormulario` (`lib/shared/widgets/apontamento_kit.dart`) — o padrão é 480px (uma coluna), mas telas em grade ou com gráfico (home de Cadastros, Dashboard) passam um `maxWidth` maior (800px) pra caber mais colunas/largura de gráfico.
+- **Responsivo por padrão**: o app roda tanto em desktop (Windows, usado hoje pra admin/cadastros e testes) quanto em celular/tablet no chão de fábrica (onde o operador vai usar o leitor de código de barras via `mobile_scanner`, Sprint 6). Formulários e listas ficam com largura máxima confortável em telas largas e ocupam a tela toda em telas estreitas, via `LarguraFormulario` (`lib/shared/widgets/apontamento_kit.dart`) — o padrão é 480px (uma coluna), mas telas em grade ou com gráfico (tela inicial, Dashboard) passam um `maxWidth` maior (800px) pra caber mais colunas/largura de gráfico.
 
 **Kit de widgets compartilhado** (`lib/shared/widgets/apontamento_kit.dart`) — usado em toda tela do app, cadastro ou operacional, pra não reinventar formulário/lista tela por tela:
 
-- `RotuloSecao` (rótulo discreto acima de um campo) e `RotuloSecaoMaiuscula` (rótulo em caixa alta, mais forte, pra separar blocos dentro de uma tela — ex.: seções da home de Cadastros, "Qualidade"/"Vincos"/"Paletização" no formulário de Ficha Técnica).
-- `CampoRotulado` e `DropdownRotulado`: campo de texto/dropdown com `RotuloSecao` acima e hint dentro, no lugar do label flutuante padrão do Material — é o padrão de formulário do app inteiro agora (cadastros, login, e todos os diálogos de ação sobre palete/refugo/ocorrência). `linhaDupla()` põe dois desses lado a lado (ex.: Comprimento/Largura, QP padrão/Referência) e `validarNumeroPositivo()` é o validador padrão de campo numérico obrigatório.
+- `RotuloSecao` (rótulo discreto acima de um campo) e `RotuloSecaoMaiuscula` (rótulo em caixa alta, mais forte, pra separar blocos dentro de uma tela — ex.: seções da tela inicial, "Composição"/"Qualidade"/"Vincos"/"Paletização" no formulário de Ficha Técnica).
+- `CampoRotulado` e `DropdownRotulado`: campo de texto/dropdown com `RotuloSecao` acima e hint dentro, no lugar do label flutuante padrão do Material — é o padrão de formulário do app inteiro agora (cadastros, login, e todos os diálogos de ação sobre palete/refugo/ocorrência). `linhaDupla()` põe dois desses lado a lado (ex.: Comprimento/Largura, QP padrão/Referência) e `validarNumeroPositivo()` é o validador padrão de campo numérico obrigatório (altura e espessura usam `lerCentesimos`, ver 9.1).
+- `CampoComSugestao`: texto livre com sugestões do que já foi digitado antes (cliente e papéis da FT) — aceita valor novo, só ajuda a não criar variações de grafia.
+- `CampoSelecaoComBusca`: seleção de 1 item numa lista grande (Ficha Técnica no cadastro de OP) — abre um diálogo com busca por código/cliente/composição em vez de um dropdown, que fica inutilizável com centenas de FTs.
 - `CartaoInfo` (cartão neutro com linhas rótulo+valor, pra dados de referência como Cliente/Composição/Medida/QP padrão ou uma linha avulsa como "Próximo palete desta OP"), `CartaoProgresso` (métrica + barra + percentual — "produzido nesta OP" da Onduladeira, "chapas disponíveis" e "progresso do pedido" da Conversão, e a prévia de progresso nas listas de OP), `CartaoResultado` (destaque de um resultado calculado — quantidade calculada antes de confirmar um apontamento, ou a nova quantidade ao corrigir um palete), `BotaoAcaoPrincipal` (botão de alto contraste, sempre a última ação da tela) e `CartaoLista` (linha de lista em cartão arredondado — com barra de progresso opcional —, substituindo `ListTile` cru em toda lista do app).
 
 **Apontamento embutido na tela de detalhe da OP, sem tela nem diálogo à parte**: `OrdemDetalheView` (Onduladeira) e `OrdemDetalheConversaoView` (Conversão) trazem o contexto da FT, os cartões de progresso, o campo de medida (altura ou camadas), "Próximo palete desta OP", a quantidade calculada e o botão de confirmar todos juntos, no topo da própria tela. Depois de confirmar um apontamento a tela não navega pra lugar nenhum: só limpa o campo de medida, pra apontar o próximo palete em sequência sem sair da tela. Ficha Técnica aparece só como contexto (campo desabilitado com os dados da FT embaixo), já que a escolha aconteceu na tela anterior (lista de OPs) — não tem mais campo de busca de FT/OP nessa tela. O histórico de paletes já apontados **não** fica mais na mesma tela: fica atrás de um botão "Paletes apontados (N)", que abre `PaletesApontadosView`/`PaletesApontadosConversaoView` — telas dedicadas só pra essa lista, com data completa (`dd/MM HH:mm`, não só a hora) em cada linha. (Existiu uma versão intermediária com uma tela cheia separada de apontamento, alcançada por um FAB — foi abandonada por pedido do usuário antes de qualquer commit; não existe no histórico do repositório.)
 
 **Prévia de progresso nas listas de OP**: `OrdensAbertasView` (Onduladeira) e `OrdensDisponiveisView` (Conversão) mostram uma barra de progresso fina em cada cartão, sem precisar abrir o detalhe — vem de uma query agregada só (`_comProgressoOnduladeira`/`_comProgressoConversao` em `paletes_repository.dart`, não é N+1) que falha de forma silenciosa (a lista continua aparecendo sem a barra) se der erro. Offline, a barra não aparece pra OPs nunca visitadas, porque o cache local não guarda esse agregado.
 
-**Home do Admin reorganizada**: `CadastrosHomeView` trocou a lista única por um cabeçalho próprio (avatar com iniciais, nome, perfil, botão de sair) e os itens agrupados em 3 seções — CADASTROS, OPERACIONAL (com uma "pill" mostrando o setor em vez de seta), GESTÃO — numa grade responsiva (`_GradeMenu`, calcula colunas pelo espaço disponível, sem breakpoint fixo).
+**Tela inicial única** (`HomeView`): cabeçalho próprio (avatar com iniciais, nome, perfil, botão de sair) e os itens agrupados em 3 seções — CADASTROS, OPERACIONAL (com uma "pill" mostrando o setor em vez de seta), GESTÃO — numa grade responsiva (`_GradeMenu`, calcula colunas pelo espaço disponível, sem breakpoint fixo). É a mesma tela pra todos os perfis, com os botões filtrados por `Permissoes` (ver seção 2) — as telas de setor (Ordens em aberto, Ordens disponíveis, Fila de análise) são abertas a partir dela, com botão de voltar, e não têm mais botão de sair próprio.
 
 **Etiqueta continua adiada**: nenhum botão de confirmar apontamento promete impressão de etiqueta (fica só "Confirmar apontamento") — isso é do Sprint 6, ainda sem data.
 
-**Cadastro de Ordem de Produção**: formulário passou pro padrão `CampoRotulado`/`DropdownRotulado`, e o campo "Data do pedido" (que pedia pra escolher manualmente num date picker) saiu — a data é sempre a de hoje, gravada automaticamente ao salvar. `OrdemProducao` ganhou o getter `unidadePedido` (`chapas` pra OP 803, `caixas` pra 802 — mesma regra do prefixo, ver seção 1), usado na lista pra não rotular tudo como "chapas" incondicionalmente.
+**Cadastro de Ordem de Produção** (Admin e Onduladeira): número da OP, Ficha Técnica (escolhida por `CampoSelecaoComBusca`), quantidade pedida e **espessura medida da chapa** (obrigatória, ver 9.1) — com o aviso de divergência de mais de 10% em relação à espessura esperada da FT aparecendo ao vivo enquanto digita. A data do pedido é sempre a de hoje, gravada automaticamente. `OrdemProducao.unidadePedido` (`chapas` pra OP 803, `caixas` pra 802 — mesma regra do prefixo, ver seção 1) rotula a quantidade na lista.
 
-**Cadastro de Composição virou papel por papel**: em vez de digitar o `codigo` livre (ex.: `T140M130T140/B`), o admin escolhe o **tipo de onda** — `B`/`C` (onda simples, 3 papéis: capa/miolo/capa) ou `DB`/`DC` (onda dupla, 5 papéis: capa/miolo/capa/miolo/capa) — e um papel por campo (lista fixa de exemplo por enquanto: `T090`, `T110`, `T140`, `T170`, `T190`, `T210`, ver `papeisDisponiveis` em `lib/domain/entities/composicao.dart`). O `codigo` é gerado pelo app a partir disso (papéis concatenados + `/` + tipo de onda) e mostrado como prévia antes de salvar — não é mais digitado direto, mesmo padrão de "o app calcula" já usado em `quantidade_calculada`. As 2 composições já cadastradas foram migradas pros campos novos com backfill, sem perder dado.
+**Cadastro de Ficha Técnica** (só Admin; os outros perfis abrem uma consulta somente leitura): cliente (`CampoComSugestao`), seção COMPOSIÇÃO com tipo de onda + 3 ou 5 campos de papel conforme a onda (cada um com sugestão dos papéis já usados) e a prévia da composição gerada (ex.: `T140M130T140/B`), espessura esperada, medida da chapa, vincos, QP padrão, qualidade e paletização — ver 5.1.
 
 ---
 
